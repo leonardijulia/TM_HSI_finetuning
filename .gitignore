@@ -1,0 +1,12 @@
+data/enmap_cdl
+data/hyperview_1
+data/hyperview_2
+
+configs/run_training_enmap_cdl.sh
+configs/run_training_hyperview_1.sh
+
+auxiliary
+
+outputs
+
+src/ckpt

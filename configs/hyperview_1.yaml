@@ -1,0 +1,47 @@
+seed_everything: 42
+trainer:
+  accelerator: auto
+  strategy: auto
+  devices: auto
+  num_nodes: 1
+  precision: 16-mixed
+  logger: true
+  callbacks:
+    - class_path: RichProgressBar
+    - class_path: LearningRateMonitor
+    - class_path: ModelCheckpoint
+      init_args:
+        logging_interval: epoch
+  max_epochs: 100
+  log_every_n_steps: 5
+  default_root_dir: data_TM/output/ # if the yaml is already in data_TM - then probably doesn't need to be specified...?
+data: # The field data is expected to receive a generic datamodule or any other datamodule compatible with Lightning Datamodules
+  class_path: custom_data.hyperview1_datamodule.Hyperview1NonGeoDataModule # my own datamodule/dataset (probably to be debugged)
+
+  init_args:
+    batch_size: 8
+    num_workers: 2
+    bands: s2l2a # Picking the indices corresponding to S2L2A
+    data_root: data_TM/SeeingBeyondTheVisible/
+
+model:
+  class_path: terratorch.tasks.ScalarRegressionTask
+  init_args:
+    model_factory: EncoderDecoderFactory
+    model_args:
+      backbone: terramind_v1_base
+      backbone_pretrained: true
+      backbone_modalities:
+        - S2L2A
+      necks:
+        - 
+      
+      decoder: 
+      
+
+
+   
+
+
+
+    
