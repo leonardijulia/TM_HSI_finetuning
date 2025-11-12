@@ -10,7 +10,7 @@ from torch.utils.data import Subset
 import albumentations as A
 from torchgeo.datamodules import NonGeoDataModule
 
-from .hyperview1_dataset import Hyperview1NonGeo
+from datasets.hyperview_1 import Hyperview1NonGeo
 
 
 class Hyperview1NonGeoDataModule(NonGeoDataModule):
@@ -22,7 +22,7 @@ class Hyperview1NonGeoDataModule(NonGeoDataModule):
         batch_size: int = 4,
         num_workers: int = 2,
         #crop_size: int = 11,
-        resize_size: int = 224,
+        resize_size: int = 128,
         bands: str = "s2l2a",
         target_mean: Optional[Sequence[float]] = None,
         target_std: Optional[Sequence[float]] = None,
@@ -68,7 +68,8 @@ class Hyperview1NonGeoDataModule(NonGeoDataModule):
             val_size = int(0.2 * len(full_train_dataset))
             train_size = len(full_train_dataset) - val_size
             
-            self.train_dataset, self.val_dataset = Subset(full_train_dataset, range(train_size)), Subset(full_train_dataset, range(train_size, len(full_train_dataset)))
+            self.train_dataset, self.val_dataset = Subset(full_train_dataset, range(train_size)), 
+            Subset(full_train_dataset, range(train_size, len(full_train_dataset)))
             
             self.val_dataset = self.dataset_class(
                 data_root=self.data_root,
