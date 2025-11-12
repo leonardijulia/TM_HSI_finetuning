@@ -12,7 +12,6 @@ from torchgeo.datamodules import NonGeoDataModule
 
 from datasets.hyperview_1 import Hyperview1NonGeo
 
-
 class Hyperview1NonGeoDataModule(NonGeoDataModule):
     """NonGeo LightningDataModule for the Hyperview-1 challenge dataset."""
 

@@ -5,7 +5,13 @@ trainer:
   devices: auto
   num_nodes: 1
   precision: 16-mixed
-  logger: true
+  logger: 
+    class_path: pytorch_lightning.loggers.MLFlowLogger
+    init_args:
+      experiment_name: hyperview_1
+      tracking_uri: experiments/outputs/MlFlow
+      run_name: "${now:%Y-%m-%d_%H-%M-%S}"
+
   callbacks:
     - class_path: RichProgressBar
     - class_path: LearningRateMonitor
@@ -23,7 +29,7 @@ trainer:
         mode: min
         patience: 20
 
-  max_epochs: 400
+  max_epochs: 3
   log_every_n_steps: 5
   default_root_dir: experiments/
 data: 
