@@ -10,7 +10,7 @@ from torch.utils.data import Subset
 import albumentations as A
 from torchgeo.datamodules import NonGeoDataModule
 
-from datasets.hyperview_1 import Hyperview1NonGeo
+from src.datasets.hyperview_1 import Hyperview1NonGeo
 
 class Hyperview1NonGeoDataModule(NonGeoDataModule):
     """NonGeo LightningDataModule for the Hyperview-1 challenge dataset."""
@@ -67,8 +67,7 @@ class Hyperview1NonGeoDataModule(NonGeoDataModule):
             val_size = int(0.2 * len(full_train_dataset))
             train_size = len(full_train_dataset) - val_size
             
-            self.train_dataset, self.val_dataset = Subset(full_train_dataset, range(train_size)), 
-            Subset(full_train_dataset, range(train_size, len(full_train_dataset)))
+            self.train_dataset, self.val_dataset = Subset(full_train_dataset, range(train_size)), Subset(full_train_dataset, range(train_size, len(full_train_dataset)))
             
             self.val_dataset = self.dataset_class(
                 data_root=self.data_root,

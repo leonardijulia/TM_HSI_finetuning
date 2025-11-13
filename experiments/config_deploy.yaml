@@ -1,0 +1,81 @@
+data:
+  class_path: src.datamodules.hyperview_1.Hyperview1NonGeoDataModule
+  init_args:
+    bands: s2l2a
+    batch_size: 32
+    data_root: data/hyperview_1/
+    num_workers: 2
+    resize_size: 128
+deploy_config_file: true
+model:
+  class_path: terratorch.tasks.ScalarRegressionTask
+  init_args:
+    freeze_backbone: false
+    freeze_decoder: false
+    freeze_head: false
+    loss: src.losses.hyperview_mse_loss.CustomMSELoss
+    lr: 0.001
+    model_args:
+      backbone: terramind_v1_base
+      backbone_bands:
+        S2L2A:
+        - COASTAL_AEROSOL
+        - BLUE
+        - GREEN
+        - RED
+        - RED_EDGE_1
+        - RED_EDGE_2
+        - RED_EDGE_3
+        - NIR_BROAD
+        - NIR_NARROW
+        - WATER_VAPOR
+        - SWIR_1
+        - SWIR_2
+      backbone_ckpt_path: ./src/ckpt/TerraMind_v1_base.pt
+      backbone_img_size: 224
+      backbone_in_chans: 12
+      backbone_modalities:
+      - S2L2A
+      decoder: IdentityDecoder
+      head_dropout: 0.2
+      head_num_outputs: 4
+      necks:
+      - indices:
+        - -1
+        name: SelectIndices
+      - name: PermuteDims
+        new_order:
+        - 0
+        - 2
+        - 1
+    model_factory: EncoderDecoderFactory
+    num_outputs: 1
+    path_to_record_metrics: experiments/outputs/hyperview_1/
+    plot_on_val: false
+    var_names:
+    - P
+    - K
+    - Mg
+    - pH
+out_dtype: int16
+seed_everything: 42
+trainer:
+  accelerator: auto
+  accumulate_grad_batches: 1
+  barebones: false
+  check_val_every_n_epoch: 1
+  detect_anomaly: false
+  devices: auto
+  fast_dev_run: false
+  inference_mode: true
+  log_every_n_steps: 5
+  logger: false
+  max_epochs: 3
+  max_steps: -1
+  num_nodes: 1
+  overfit_batches: 0.0
+  precision: 16-mixed
+  reload_dataloaders_every_n_epochs: 0
+  strategy: auto
+  sync_batchnorm: false
+  use_distributed_sampler: true
