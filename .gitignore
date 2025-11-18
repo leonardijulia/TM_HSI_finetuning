@@ -1,6 +1,7 @@
 data/enmap_cdl
 data/hyperview_1
 data/hyperview_2
+data/enmap_bnetd
 
 configs/run_training_enmap_cdl.sh
 configs/run_training_hyperview_1.sh
@@ -12,3 +13,9 @@ outputs
 src/ckpt
 tm
 __pycache__/
+experiment_logs
+mlflow.db
+hyperview_1.yaml
+config.yaml
+config_deploy.yaml
+.gitignore

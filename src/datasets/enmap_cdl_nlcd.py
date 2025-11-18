@@ -15,9 +15,6 @@ import rasterio
 import matplotlib.pyplot as plt
 import random
 
-
-
-
 class EnMAPCDLNLCDDataset(NonGeoDataset):
     """EnMAP-CDL/NLCD dataset for crop type/land cover classification.
     
