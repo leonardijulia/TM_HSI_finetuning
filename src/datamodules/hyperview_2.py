@@ -20,8 +20,8 @@ class Hyperview1NonGeoDataModule(NonGeoDataModule):
         data_root: str,
         batch_size: int = 4,
         num_workers: int = 2,
-        stats_path: str = "data/statistics/hyperview_1",
-        resize_size: int = 224,
+        #crop_size: int = 11,
+        resize_size: int = 128,
         bands: str = "s2l2a",
         target_mean: Optional[Sequence[float]] = None,
         target_std: Optional[Sequence[float]] = None,
@@ -44,11 +44,10 @@ class Hyperview1NonGeoDataModule(NonGeoDataModule):
         self.bands = bands
         self.target_mean = target_mean
         self.target_std = target_std
-        self.stats_path = Path(stats_path)
 
         # Albumentations CenterCrop transform
         self.transform = A.Compose([
-            A.D4(),
+            #A.CenterCrop(height=crop_size, width=crop_size),
             A.Resize(height=resize_size, width=resize_size)
         ])
 
@@ -60,7 +59,6 @@ class Hyperview1NonGeoDataModule(NonGeoDataModule):
                 split="train",
                 bands=self.bands,
                 transform=self.transform,
-                stats_path=self.stats_path,
                 target_mean=self.target_mean,
                 target_std=self.target_std
             )
@@ -76,7 +74,6 @@ class Hyperview1NonGeoDataModule(NonGeoDataModule):
                 split="val",
                 bands=self.bands,
                 transform=self.transform,
-                stats_path=self.stats_path,
                 target_mean=self.target_mean,
                 target_std=self.target_std
             )
@@ -86,5 +83,5 @@ class Hyperview1NonGeoDataModule(NonGeoDataModule):
                 data_root=self.data_root,
                 split="test",
                 bands=self.bands,
-                transform=self.transform,
+                transform=self.transform
             )

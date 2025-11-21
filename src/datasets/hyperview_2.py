@@ -9,12 +9,12 @@ import numpy as np
 import pandas as pd
 from torchgeo.datasets import NonGeoDataset
 import albumentations as A
-from torchgeo.datamodules.utils import MisconfigurationException
-from src.transforms.normalize import NormalizeMeanStd
 
-class Hyperview1NonGeo(NonGeoDataset):
-    """A custom dataset for the Hyperview-1 challenge dataset for patch wise regression.
-    https://platform.ai4eo.eu/seeing-beyond-the-visible-permanent/data
+class Hyperview2NonGeo(NonGeoDataset):
+    """A custom dataset for the Hyperview-2 challenge dataset for patch wise regression.
+    https://ai4eo.eu/portfolio/easi-workshop-hyperview2/. This dataset comprises an input of 
+    three patches of the same region (2 hyperspectral - airborne and satellite - and 1 multispectral).
+    The patches have: different GSDs, varying sizes, and varying spectral resolutions.
 
     Args:
         root (str): Path to the root directory where the dataset is stored.
@@ -47,7 +47,6 @@ class Hyperview1NonGeo(NonGeoDataset):
             data_root: str,
             split: str = "train",
             gt_file: str = gt_file,
-            stats_path: Path = None,
             target_mean: float | None = None,
             target_std: float | None = None,
             bands: str = 's2l2a',
@@ -58,19 +57,12 @@ class Hyperview1NonGeo(NonGeoDataset):
         assert bands in self.BAND_SETS.keys(), \
             f"Invalid band set '{bands}'. Must be one of {list(self.BAND_SETS.keys())}"
             
-        try:
-            mean = torch.tensor(np.load(f"{stats_path}/mu.npy"))
-            std = torch.tensor(np.load(f"{stats_path}/sigma.npy"))
-        except FileNotFoundError:
-            raise MisconfigurationException("Missing statistics! Ensure mu.npy and sigma.npy are available.")
-
-        self.normalizer = NormalizeMeanStd(mean=mean, std=std, indices="hyperview_1")
         self.split = split
         self.data_root = Path(data_root)
         csv_file = self.data_root / gt_file
         df = pd.read_csv(csv_file)
         self.bands = self.BAND_SETS[bands]["bands"]
-        self.band_indices = self.BAND_SETS[bands]["indices"]
+        self.band_indeces = self.BAND_SETS[bands]["indices"]
 
         self.samples = []
         
@@ -115,30 +107,27 @@ class Hyperview1NonGeo(NonGeoDataset):
         patch = self._load_file(sample["patch_path"])
         
         if self.transform:
-            patch = self.transform(image=patch.permute(1,2,0).numpy())["image"] # Albumentations expects (H, W, C)
-            patch = torch.from_numpy(patch).permute(2,0,1)  # back to (C, H, W)
+            patch = self.transform(image=patch)["image"]
             
         if self.split in ["train", "val"]:
             label = sample["label"]
             label = (label - self.target_mean) / (self.target_std)
-            out = {"image": patch, "label": torch.tensor(label, dtype=torch.float32)}
+            patch = np.moveaxis(patch, -1, 0)  # (C, H, W)
+
+            out = {"image": torch.tensor(patch, dtype=torch.float32),
+                   "label": torch.tensor(label, dtype=torch.float32)}
         else:
-            out = {"image": patch}
+            patch = np.moveaxis(patch, -1, 0)  # (C, H, W)
+            out = {"image": torch.tensor(patch, dtype=torch.float32)}
               
         return out
     
     def _load_file(self, path: str):
         npz = np.load(path)
         data = np.ma.MaskedArray(**npz)
+        #data = data.filled(0)
+        data = data[self.band_indeces, :, :].astype(np.float32)
+        data = np.moveaxis(data, 0, -1) # (H, W, C)
         
-        mask = (~data.mask[0]).astype(np.float32)  # all mask bands are identical
-        data_selected = data[self.band_indices, :, :].filled(0).astype(np.float32)  # (C, H, W)
-        
-        data_tensor = torch.from_numpy(data_selected)
-        norm_data = self.normalizer(data_tensor[None, :, :, :]).squeeze(0)  # (bands, H, W)
-        
-        mask_tensor = torch.from_numpy(mask[None, :, :])  # (1, H, W)
-        input_tensor = torch.cat([norm_data, mask_tensor], dim=0)
-        
-        return input_tensor  # (C, H, W)
+        return data
         
