@@ -116,7 +116,7 @@ class Hyperview1NonGeo(NonGeoDataset):
         
         if self.transform:
             patch = self.transform(image=patch.permute(1,2,0).numpy())["image"] # Albumentations expects (H, W, C)
-            patch = torch.from_numpy(patch).permute(2,0,1)  # back to (C, H, W)
+            patch = torch.from_numpy(patch).permute(2,0,1).float()  # back to (C, H, W)
             
         if self.split in ["train", "val"]:
             label = sample["label"]
