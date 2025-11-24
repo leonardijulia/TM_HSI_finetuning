@@ -2,6 +2,7 @@ data/enmap_cdl
 data/hyperview_1
 data/hyperview_2
 data/enmap_bnetd
+data/enmap_bdforet
 
 configs/run_training_enmap_cdl.sh
 configs/run_training_hyperview_1.sh

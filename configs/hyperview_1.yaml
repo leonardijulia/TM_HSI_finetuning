@@ -16,7 +16,7 @@ trainer:
     - class_path: LearningRateMonitor
     - class_path: ModelCheckpoint
       init_args:
-        dirpath: ./outputs/hyperview_1/checkpoints
+        dirpath: /leonardo/home/userexternal/jleonard/experiments/outputs/hyperview_1/checkpoints
         filename: '{epoch:02d}'
         monitor: val/loss
         mode: min
@@ -30,14 +30,14 @@ trainer:
 
   max_epochs: 400
   log_every_n_steps: 5
-  default_root_dir: .
+  default_root_dir: /leonardo/home/userexternal/jleonard/experiments/
 data: 
   class_path: src.datamodules.hyperview_1.Hyperview1NonGeoDataModule
   init_args:
     batch_size: 32 # following the setup of SpectralEarth
     num_workers: 2
     bands: s2l2a # Picking the indices corresponding to S2L2A
-    data_root: data/hyperview_1/
+    data_root: /leonardo/home/userexternal/jleonard/experiments/data/hyperview_1/
 
 model:
   class_path: terratorch.tasks.ScalarRegressionTask
@@ -45,13 +45,14 @@ model:
     model_factory: EncoderDecoderFactory
     model_args:
       backbone: terramind_v1_base
-      backbone_ckpt_path: ./src/ckpt/TerraMind_v1_base.pt
+      backbone_ckpt_path: /leonardo/home/userexternal/jleonard/experiments/src/ckpt/TerraMind_v1_base.pt
       backbone_img_size: 224
-      backbone_in_chans: 12
+      backbone_in_chans: 13
       backbone_modalities:
         - S2L2A
       backbone_bands:
-        S2L2A: ["COASTAL_AEROSOL", "BLUE", "GREEN", "RED", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3", "NIR_BROAD", "NIR_NARROW", "WATER_VAPOR", "SWIR_1", "SWIR_2",]
+        S2L2A: ["COASTAL_AEROSOL", "BLUE", "GREEN", "RED", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3", "NIR_BROAD", "NIR_NARROW", 
+                "WATER_VAPOR", "SWIR_1", "SWIR_2", "MASK"]
       necks:
         - name: SelectIndices
           indices: [-1]
@@ -71,7 +72,7 @@ model:
 optimizer:
   class_path: torch.optim.AdamW
   init_args:
-    lr: 1e-3
+    lr: 1e-5
     weight_decay: 1e-4 #?
 
 lr_scheduler:

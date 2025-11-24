@@ -20,7 +20,7 @@ class Hyperview1NonGeoDataModule(NonGeoDataModule):
         data_root: str,
         batch_size: int = 4,
         num_workers: int = 2,
-        stats_path: str = "data/statistics/hyperview_1",
+        stats_path: str = "/leonardo/home/userexternal/jleonard/experiments/data/statistics/hyperview_1",
         resize_size: int = 224,
         bands: str = "s2l2a",
         target_mean: Optional[Sequence[float]] = None,
