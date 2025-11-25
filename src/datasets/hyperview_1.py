@@ -3,6 +3,7 @@ This module contains a custom terratorch dataset for the hyperview-1 challenge d
 """
 
 import os
+import glob
 import torch
 from pathlib import Path
 import numpy as np
@@ -67,6 +68,7 @@ class Hyperview1NonGeo(NonGeoDataset):
         self.normalizer = NormalizeMeanStd(mean=mean, std=std, indices="hyperview_1")
         self.split = split
         self.data_root = Path(data_root)
+        self.test_root = data_root / "test"
         csv_file = self.data_root / gt_file
         df = pd.read_csv(csv_file)
         self.bands = self.BAND_SETS[bands]["bands"]
@@ -97,9 +99,9 @@ class Hyperview1NonGeo(NonGeoDataset):
 
                 
         elif split == "test":
-            for _, row in df.iterrows():
-                patch_id = int(row["sample_index"])
-                patch_path = self.data_root / split / f"{patch_id}.npz"
+            test_files = glob.glob(self.test_root)
+            for file in test_files:
+                patch_path = self.test_root / file
                 self.samples.append({
                     "patch_path": patch_path,
                 })

@@ -24,16 +24,17 @@ class EnMAPBDForetDataset(NonGeoDataset):
     mask_root = "bdforet"    # BD Forest masks
     split_path = os.path.join("data", "splits", "enmap_bdforet", "{}.txt")
     
-    rgb_indices = {"enmap": [43, 28, 10]}
+    s2l2a_indices = [6, 16, 30, 48, 54, 59, 65, 71, 75, 90, 131, 172]
+    rgb_indices = {"enmap": [3,2,1]}
 
     def __init__(
         self,
-        root: str = "data",
+        root: str = ".\data\enmap_bdforet",
         sensor: str = "enmap",
         split: str = "train",
-        classes: Optional[List[int]] = None,
+        classes: Optional[List[int]] = [0, 1, 2, 3, 4, 5, 7, 9, 10, 11, 12, 14, 16],
         transforms: Optional[Callable[[dict[str, Tensor]], dict[str, Tensor]]] = None,
-        num_bands: int = 202,
+        num_bands: int = 12,
         raw_mask: bool = False,
     ) -> None:
         """Initialize the EnMAP-BDForet dataset.
@@ -120,13 +121,13 @@ class EnMAPBDForetDataset(NonGeoDataset):
     def _load_image(self, path: str) -> Tensor:
         """Load the ENMAP image using rasterio."""
         with rasterio.open(path) as src:
-            image = torch.from_numpy(src.read()).float()  # shape: (bands, H, W)
+            image = torch.from_numpy(src.read(self.s2l2a_indices)).float()  # shape: (bands, H, W)
         return image
 
     def _load_mask(self, path: str) -> Tensor:
         """Load the BD Forest mask using rasterio, and remap classes if needed."""
         with rasterio.open(path) as src:
-            mask = torch.from_numpy(src.read()).long()  # shape: (1, H, W)
+            mask = torch.from_numpy(src.read(1)).long()  # shape: (1, H, W)
         if self.raw_mask:
             return mask
         return self._remap_mask(mask)

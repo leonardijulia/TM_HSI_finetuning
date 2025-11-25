@@ -54,7 +54,7 @@ class Hyperview1NonGeoDataModule(NonGeoDataModule):
 
     def setup(self, stage: Optional[str] = None) -> None:
         """Create train/val/test datasets."""
-        if stage in ("fit", None):
+        if stage in ("fit", "val", "test", None):
             full_train_dataset = self.dataset_class( 
                 data_root=self.data_root,
                 split="train",
@@ -81,7 +81,7 @@ class Hyperview1NonGeoDataModule(NonGeoDataModule):
                 target_std=self.target_std
             )
 
-        if stage in ("test", None):
+        if stage in ("predict", None):
             self.test_dataset = self.dataset_class(
                 data_root=self.data_root,
                 split="test",

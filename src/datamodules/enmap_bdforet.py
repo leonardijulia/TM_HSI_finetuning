@@ -10,10 +10,10 @@ from torch import Tensor
 import torch
 import numpy as np
 
-from ..transforms.normalize import NormalizeMeanStd  
+from src.transforms.normalize import NormalizeMeanStd  
 from torchgeo.datamodules.utils import MisconfigurationException
 
-from ..datasets.enmap_bdforet import EnMAPBDForetDataset
+from datasets.enmap_bdforet import EnMAPBDForetDataset
 
 
 class EnMAPBDForetDataModule(NonGeoDataModule):
@@ -26,7 +26,7 @@ class EnMAPBDForetDataModule(NonGeoDataModule):
         batch_size: int = 64,
         patch_size: Union[int, tuple[int, int]] = 128,
         num_workers: int = 0,
-        stats_path: str = "data/statistics",
+        stats_path: str = "/leonardo/home/userexternal/jleonard/experiments/data/statistics/enmap",
         **kwargs: Any,
     ) -> None:
         """
@@ -52,8 +52,7 @@ class EnMAPBDForetDataModule(NonGeoDataModule):
             K.RandomResizedCrop(_to_tuple(self.patch_size), scale=(0.4, 1.0)),
             K.RandomVerticalFlip(p=0.5),
             K.RandomHorizontalFlip(p=0.5),
-            NormalizeMeanStd(mean=mean, std=std),
-            data_keys=["image", "mask"],
+            data_keys=None, #["image", "mask"],
             extra_args={
                 DataKey.MASK: {"resample": Resample.NEAREST, "align_corners": None}
             },
@@ -61,16 +60,31 @@ class EnMAPBDForetDataModule(NonGeoDataModule):
         self.val_aug = AugmentationSequential(
             K.Resize(_to_tuple(self.patch_size)),
             K.CenterCrop(self.patch_size),
-            NormalizeMeanStd(mean=mean, std=std),
-            data_keys=["image", "mask"],
+            data_keys=None, #["image", "mask"],
         )
         self.test_aug = AugmentationSequential(
             K.Resize(_to_tuple(self.patch_size)),
             K.CenterCrop(self.patch_size),
-            NormalizeMeanStd(mean=mean, std=std),
-            data_keys=["image", "mask"],
+            data_keys=None, #["image", "mask"],
         )
-
+        
+        self.norm_aug = K.AugmentationSequential(
+            NormalizeMeanStd(mean=mean, std=std),
+            data_keys=["image"])
+        
+    def setup(self, stage: str = None) -> None:
+        """
+        Override to define train/val/test/predict datasets for the given stage.
+        """
+        if stage in ["fit"]:
+            self.train_dataset = self.dataset_class(split="train", **self.kwargs)
+        if stage in ['fit', 'validate']:
+            self.val_dataset = self.dataset_class(split="val", **self.kwargs)
+        if stage in ['test']:
+            self.test_dataset = self.dataset_class(split="test", **self.kwargs)
+        if stage in ["predict"]: 
+            self.predict_dataset = self.dataset_class(split="test", **self.kwargs)
+            
     def on_after_batch_transfer(
         self, batch: dict[str, Tensor], dataloader_idx: int
     ) -> dict[str, Tensor]:
@@ -90,5 +104,6 @@ class EnMAPBDForetDataModule(NonGeoDataModule):
                 raise NotImplementedError("Unknown trainer mode.")
             batch["image"] = batch["image"].float()
             batch = aug(batch)
+            batch["image"] = self.norm_aug(batch["image"])
             batch["image"] = batch["image"].to(batch["mask"].device)
         return batch
