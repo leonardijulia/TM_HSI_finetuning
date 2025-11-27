@@ -5,10 +5,13 @@ This module contains a custom terratorch dataset for the hyperview-1 challenge d
 import os
 import glob
 import torch
+from torch import Tensor
+from typing import Optional
 from pathlib import Path
 import numpy as np
 import pandas as pd
 from torchgeo.datasets import NonGeoDataset
+import matplotlib.pyplot as plt
 import albumentations as A
 from torchgeo.datamodules.utils import MisconfigurationException
 from src.transforms.normalize import NormalizeMeanStd
@@ -40,6 +43,10 @@ class Hyperview1NonGeo(NonGeoDataset):
             "indices": [61, 32, 7]
         },
     }
+    
+    rgb_for_vis = {"s2l2a": [3, 2, 1],
+                   "hls": [2,1,0]}
+    
     gt_file = 'train_gt.csv'
     soil_params = ["P", "K", "Mg", "pH"]
     
@@ -143,4 +150,36 @@ class Hyperview1NonGeo(NonGeoDataset):
         input_tensor = torch.cat([norm_data, mask_tensor], dim=0)
         
         return input_tensor  # (C, H, W)
+    
+    def plot(self, 
+             sample: dict[str, Tensor], 
+             show_titles: bool = True,
+             suptitle: Optional[str] = None,
+    ) -> plt.Figure:
+        """Return a matplotlib figure showing the image, target, and prediction."""
+        image = sample["image"][self.rgb_for_vis['s2l2a']].numpy()
+        image = image.transpose(1,2,0)
+        image = (image - image.min()) / (image.max() - image.min())
         
+        target = sample["label"].numpy()
+        pred = sample["prediction"].numpy()
+        
+        text = ""
+        if target is not None:
+            text += f"Target: \n{target}\n"
+        if pred is not None:
+            text += f"Prediction: \n{pred}\n"
+        
+        fig, ax = plt.subplots(1, 2, figsize=(10, 4))
+        ax[0].imshow(image)
+        ax[0].axis("off")
+        ax[1].text(0.1, 0.5, text, fontsize=11)
+        ax[1].axis("off")
+        
+        if show_titles:
+            ax[0].set_title("Input Image") 
+            
+        if suptitle is not None:
+            plt.suptitle(suptitle) 
+            
+        return fig       

@@ -6,11 +6,28 @@ from typing import Any, Sequence, Optional
 from pathlib import Path
 
 import torch
-from torch.utils.data import Subset
+from torch import Tensor
+from torch.utils.data import Dataset, DataLoader, random_split
 import albumentations as A
 from torchgeo.datamodules import NonGeoDataModule
 
 from src.datasets.hyperview_1 import Hyperview1NonGeo
+
+class SubsetDatasetWrapper(Dataset):
+    """Wrap a dataset and only expose a subset of indices."""
+    def __init__(self, dataset, indices):
+        self.dataset = dataset
+        self.indices = indices
+
+    def __getitem__(self, idx):
+        return self.dataset[self.indices[idx]]
+
+    def __len__(self):
+        return len(self.indices)
+    
+    def plot(self, *args, **kwargs):
+        # Forward plot calls to the underlying dataset
+        return self.dataset.plot(*args, **kwargs)
 
 class Hyperview1NonGeoDataModule(NonGeoDataModule):
     """NonGeo LightningDataModule for the Hyperview-1 challenge dataset."""
@@ -54,7 +71,7 @@ class Hyperview1NonGeoDataModule(NonGeoDataModule):
 
     def setup(self, stage: Optional[str] = None) -> None:
         """Create train/val/test datasets."""
-        if stage in ("fit", "val", "test", None):
+        if stage in ["fit", "validate"]:
             full_train_dataset = self.dataset_class( 
                 data_root=self.data_root,
                 split="train",
@@ -69,20 +86,16 @@ class Hyperview1NonGeoDataModule(NonGeoDataModule):
             val_size = int(0.2 * len(full_train_dataset))
             train_size = len(full_train_dataset) - val_size
             
-            self.train_dataset, self.val_dataset = Subset(full_train_dataset, range(train_size)), Subset(full_train_dataset, range(train_size, len(full_train_dataset)))
-            
-            self.val_dataset = self.dataset_class(
-                data_root=self.data_root,
-                split="val",
-                bands=self.bands,
-                transform=self.transform,
-                stats_path=self.stats_path,
-                target_mean=self.target_mean,
-                target_std=self.target_std
-            )
+            train_indices = list(range(train_size))
+            val_indices = list(range(train_size, len(full_train_dataset)))
 
-        if stage in ("predict", None):
-            self.test_dataset = self.dataset_class(
+            # Wrap the subsets so we keep dataset methods like .plot()
+            self.train_dataset = SubsetDatasetWrapper(full_train_dataset, train_indices)
+            self.val_dataset = SubsetDatasetWrapper(full_train_dataset, val_indices)
+            
+              
+        if stage in ["predict"]:
+            self.predict_dataset = self.dataset_class(
                 data_root=self.data_root,
                 split="test",
                 bands=self.bands,

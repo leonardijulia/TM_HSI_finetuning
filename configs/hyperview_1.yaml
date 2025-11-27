@@ -64,6 +64,7 @@ model:
       head_num_outputs: 4
       head_dropout: 0.2
     loss: src.losses.hyperview_mse_loss.CustomMSELoss
+    plot_on_val: true
     freeze_backbone: false
     freeze_decoder: false
     path_to_record_metrics: ./outputs/hyperview_1/
