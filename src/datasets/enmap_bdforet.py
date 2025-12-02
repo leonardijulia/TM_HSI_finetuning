@@ -29,7 +29,7 @@ class EnMAPBDForetDataset(NonGeoDataset):
 
     def __init__(
         self,
-        root: str = ".\data\enmap_bdforet",
+        root: str = "./data/enmap_bdforet",
         sensor: str = "enmap",
         split: str = "train",
         classes: Optional[List[int]] = [0, 1, 2, 3, 4, 5, 7, 9, 10, 11, 12, 14, 16],

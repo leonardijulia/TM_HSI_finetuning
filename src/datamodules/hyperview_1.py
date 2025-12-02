@@ -2,32 +2,16 @@
 Hyperview1 DataModule for patch-wise multivariate regression.
 """
 
-from typing import Any, Sequence, Optional
+from typing import Sequence, Optional
 from pathlib import Path
 
+import numpy as np
 import torch
-from torch import Tensor
-from torch.utils.data import Dataset, DataLoader, random_split
+from torch.utils.data import Subset, random_split
 import albumentations as A
 from torchgeo.datamodules import NonGeoDataModule
 
 from src.datasets.hyperview_1 import Hyperview1NonGeo
-
-class SubsetDatasetWrapper(Dataset):
-    """Wrap a dataset and only expose a subset of indices."""
-    def __init__(self, dataset, indices):
-        self.dataset = dataset
-        self.indices = indices
-
-    def __getitem__(self, idx):
-        return self.dataset[self.indices[idx]]
-
-    def __len__(self):
-        return len(self.indices)
-    
-    def plot(self, *args, **kwargs):
-        # Forward plot calls to the underlying dataset
-        return self.dataset.plot(*args, **kwargs)
 
 class Hyperview1NonGeoDataModule(NonGeoDataModule):
     """NonGeo LightningDataModule for the Hyperview-1 challenge dataset."""
@@ -71,30 +55,65 @@ class Hyperview1NonGeoDataModule(NonGeoDataModule):
 
     def setup(self, stage: Optional[str] = None) -> None:
         """Create train/val/test datasets."""
-        if stage in ["fit", "validate"]:
-            full_train_dataset = self.dataset_class( 
+        full_train_dataset = self.dataset_class( 
+            data_root=self.data_root,
+            split="train",
+            bands=self.bands,
+            transform=self.transform,
+            stats_path=self.stats_path,
+            target_mean=None,
+            target_std=None
+        )
+            
+        # Create 80/20 train/val split
+        val_size = int(0.2 * len(full_train_dataset))
+        train_size = len(full_train_dataset) - val_size
+            
+        train_subset, val_subset = random_split(full_train_dataset, [train_size, val_size], generator=torch.Generator().manual_seed(42),)
+            
+        labels = np.stack([full_train_dataset.samples[i]["label"] for i in train_subset.indices])
+        self.target_mean = labels.mean(axis=0)
+        self.target_std = labels.std(axis=0) + 1e-6
+        
+        if stage in ["fit", "validate", "val"]:
+
+            self.train_dataset = self.dataset_class(
                 data_root=self.data_root,
                 split="train",
                 bands=self.bands,
                 transform=self.transform,
                 stats_path=self.stats_path,
                 target_mean=self.target_mean,
-                target_std=self.target_std
+                target_std=self.target_std,
+                subset_idx=train_subset.indices
             )
             
-            # Create 80/20 train/val split
-            val_size = int(0.2 * len(full_train_dataset))
-            train_size = len(full_train_dataset) - val_size
+            self.val_dataset = self.dataset_class(
+                data_root=self.data_root,
+                split="train",
+                bands=self.bands,
+                transform=self.transform,
+                stats_path=self.stats_path,
+                target_mean=self.target_mean,
+                target_std=self.target_std,
+                subset_idx=val_subset.indices
+            )
             
-            train_indices = list(range(train_size))
-            val_indices = list(range(train_size, len(full_train_dataset)))
-
-            # Wrap the subsets so we keep dataset methods like .plot()
-            self.train_dataset = SubsetDatasetWrapper(full_train_dataset, train_indices)
-            self.val_dataset = SubsetDatasetWrapper(full_train_dataset, val_indices)
+        if stage in ["test"]:
             
-              
+            self.test_dataset = self.dataset_class(
+                data_root=self.data_root,
+                split="train",
+                bands=self.bands,
+                transform=self.transform,
+                stats_path=self.stats_path,
+                target_mean=self.target_mean,
+                target_std=self.target_std,
+                subset_idx=val_subset.indices
+            )       
+            
         if stage in ["predict"]:
+            
             self.predict_dataset = self.dataset_class(
                 data_root=self.data_root,
                 split="test",

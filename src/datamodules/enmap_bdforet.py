@@ -13,7 +13,7 @@ import numpy as np
 from src.transforms.normalize import NormalizeMeanStd  
 from torchgeo.datamodules.utils import MisconfigurationException
 
-from datasets.enmap_bdforet import EnMAPBDForetDataset
+from src.datasets.enmap_bdforet import EnMAPBDForetDataset
 
 
 class EnMAPBDForetDataModule(NonGeoDataModule):
@@ -26,7 +26,7 @@ class EnMAPBDForetDataModule(NonGeoDataModule):
         batch_size: int = 64,
         patch_size: Union[int, tuple[int, int]] = 128,
         num_workers: int = 0,
-        stats_path: str = "/leonardo/home/userexternal/jleonard/experiments/data/statistics/enmap",
+        stats_path: str = "./data/statistics/enmap",
         **kwargs: Any,
     ) -> None:
         """

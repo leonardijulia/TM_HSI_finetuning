@@ -59,6 +59,7 @@ class Hyperview1NonGeo(NonGeoDataset):
             target_mean: float | None = None,
             target_std: float | None = None,
             bands: str = 's2l2a',
+            subset_idx: list[int] |None = None,
             transform: A.Compose | None = None,):
         
         super().__init__()
@@ -75,7 +76,10 @@ class Hyperview1NonGeo(NonGeoDataset):
         self.normalizer = NormalizeMeanStd(mean=mean, std=std, indices="hyperview_1")
         self.split = split
         self.data_root = Path(data_root)
-        self.test_root = data_root / "test"
+        self.test_root = self.data_root / "test"
+        self.subset_idx = subset_idx
+        self.target_mean = np.array(target_mean, dtype=np.float32)
+        self.target_std = np.array(target_std, dtype=np.float32)
         csv_file = self.data_root / gt_file
         df = pd.read_csv(csv_file)
         self.bands = self.BAND_SETS[bands]["bands"]
@@ -83,7 +87,7 @@ class Hyperview1NonGeo(NonGeoDataset):
 
         self.samples = []
         
-        if split in ["train", "val"]:
+        if split in ["train"]:
             for _, row in df.iterrows():
                 patch_id = int(row["sample_index"])
                 patch_path = self.data_root / "train" / f"{patch_id}.npz"
@@ -95,27 +99,18 @@ class Hyperview1NonGeo(NonGeoDataset):
                     "label": label
                     })
             
-            if target_mean is not None and target_std is not None: # perhaps not - use weights only 
-                self.target_mean = np.array(target_mean, dtype=np.float32)
-                self.target_std = np.array(target_std, dtype=np.float32)
-            else:
-                # Compute mean/std from dataset if not provided
-                labels = np.stack([s["label"] for s in self.samples], axis=0)
-                self.target_mean = labels.mean(axis=0) # [mean("P"), mean("K"), mean("Mg"), mean("pH")]
-                self.target_std = labels.std(axis=0)
-
-                
+            if subset_idx is not None:
+                self.samples = [self.samples[i] for i in subset_idx] 
+        
         elif split == "test":
-            test_files = glob.glob(self.test_root)
+            test_files = glob.glob(str(self.test_root / "*.npz"))
             for file in test_files:
-                patch_path = self.test_root / file
                 self.samples.append({
-                    "patch_path": patch_path,
+                    "patch_path": Path(file)
                 })
               
         self.transform = transform
-        
-        
+              
     def __len__(self):
         return len(self.samples)
     
@@ -151,35 +146,35 @@ class Hyperview1NonGeo(NonGeoDataset):
         
         return input_tensor  # (C, H, W)
     
-    def plot(self, 
-             sample: dict[str, Tensor], 
-             show_titles: bool = True,
-             suptitle: Optional[str] = None,
-    ) -> plt.Figure:
-        """Return a matplotlib figure showing the image, target, and prediction."""
-        image = sample["image"][self.rgb_for_vis['s2l2a']].numpy()
-        image = image.transpose(1,2,0)
-        image = (image - image.min()) / (image.max() - image.min())
+    # def plot(self, 
+    #          sample: dict[str, Tensor], 
+    #          show_titles: bool = True,
+    #          suptitle: Optional[str] = None,
+    # ) -> plt.Figure:
+    #     """Return a matplotlib figure showing the image, target, and prediction."""
+    #     image = sample["image"][self.rgb_for_vis['s2l2a']].numpy()
+    #     image = image.transpose(1,2,0)
+    #     image = (image - image.min()) / (image.max() - image.min())
         
-        target = sample["label"].numpy()
-        pred = sample["prediction"].numpy()
+    #     target = sample["label"].numpy()
+    #     pred = sample["prediction"].numpy()
         
-        text = ""
-        if target is not None:
-            text += f"Target: \n{target}\n"
-        if pred is not None:
-            text += f"Prediction: \n{pred}\n"
+    #     text = ""
+    #     if target is not None:
+    #         text += f"Target: \n{target}\n"
+    #     if pred is not None:
+    #         text += f"Prediction: \n{pred}\n"
         
-        fig, ax = plt.subplots(1, 2, figsize=(10, 4))
-        ax[0].imshow(image)
-        ax[0].axis("off")
-        ax[1].text(0.1, 0.5, text, fontsize=11)
-        ax[1].axis("off")
+    #     fig, ax = plt.subplots(1, 2, figsize=(10, 4))
+    #     ax[0].imshow(image)
+    #     ax[0].axis("off")
+    #     ax[1].text(0.1, 0.5, text, fontsize=11)
+    #     ax[1].axis("off")
         
-        if show_titles:
-            ax[0].set_title("Input Image") 
+    #     if show_titles:
+    #         ax[0].set_title("Input Image") 
             
-        if suptitle is not None:
-            plt.suptitle(suptitle) 
+    #     if suptitle is not None:
+    #         plt.suptitle(suptitle) 
             
-        return fig       
+    #     return fig       

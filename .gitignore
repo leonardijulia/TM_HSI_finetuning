@@ -20,3 +20,4 @@ hyperview_1.yaml
 config.yaml
 config_deploy.yaml
 .gitignore
+lightning_logs
