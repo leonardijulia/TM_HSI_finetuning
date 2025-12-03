@@ -26,7 +26,7 @@ class EnMAPBDForetDataModule(NonGeoDataModule):
         batch_size: int = 64,
         patch_size: Union[int, tuple[int, int]] = 128,
         num_workers: int = 0,
-        stats_path: str = "./data/statistics/enmap",
+        stats_path: str = "./data/statistics/enmap_bdforet",
         **kwargs: Any,
     ) -> None:
         """

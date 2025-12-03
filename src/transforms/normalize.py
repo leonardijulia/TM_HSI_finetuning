@@ -33,8 +33,8 @@ class NormalizeMeanStd(nn.Module):
         super().__init__()
         
         assert indices in self.indices.keys(), f"Invalid indices set '{indices}'. Must be one of {list(self.indices.keys())}"
-        self.mean = mean[self.indices[indices]]
-        self.std = std[self.indices[indices]]
+        self.mean = mean[self.indices[indices]].float()
+        self.std = std[self.indices[indices]].float()
 
 
     @torch.no_grad()  

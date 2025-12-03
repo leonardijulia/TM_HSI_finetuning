@@ -102,7 +102,38 @@ class EnMAPBDForetDataset(NonGeoDataset):
             for sample_id in sample_ids
         ]
         return sample_collection
-
+    
+    def calculate_class_weights(self) -> Tensor:
+        """
+        Iterates over the dataset to calculate class weights based on the 
+        remapped/ordinal labels. Ignores the ignore_index.
+        """
+        import numpy as np
+        from tqdm import tqdm
+        
+        # We want weights for indices [0, 1, ... len(foreground_classes)-1]
+        num_classes = len(self.foreground_classes) + 1
+        counts = np.zeros(num_classes, dtype=np.int64)
+                
+        for _, mask_path in tqdm(self.sample_collection):
+            mask_tensor = self._load_mask(mask_path) 
+            mask = mask_tensor.numpy()            
+           
+            if mask.size > 0:
+                # bincount is fast. minlength ensures we see 0 for missing classes
+                sample_counts = np.bincount(mask.flatten(), minlength=num_classes)
+                
+                # Safety check: bincount might return more bins if data is dirty
+                counts += sample_counts[:num_classes]
+                
+        total_valid_pixels = counts.sum()
+        
+        # Add epsilon to prevent div by zero
+        weights = total_valid_pixels / (num_classes * (counts + 1e-6))
+        
+        # Convert to Tensor float
+        return torch.from_numpy(weights).float()
+    
     def __getitem__(self, index: int) -> dict[str, Tensor]:
         """Return a sample given its index."""
         img_path, mask_path = self.sample_collection[index]
@@ -122,7 +153,10 @@ class EnMAPBDForetDataset(NonGeoDataset):
         """Load the ENMAP image using rasterio."""
         with rasterio.open(path) as src:
             image = torch.from_numpy(src.read(self.s2l2a_indices)).float()  # shape: (bands, H, W)
-        return image
+            
+        image[image < 0] = 0.0
+        image =  image / 10000.0
+        return image.float()
 
     def _load_mask(self, path: str) -> Tensor:
         """Load the BD Forest mask using rasterio, and remap classes if needed."""
