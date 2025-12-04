@@ -129,7 +129,7 @@ class EnMAPBDForetDataset(NonGeoDataset):
         total_valid_pixels = counts.sum()
         
         # Add epsilon to prevent div by zero
-        weights = total_valid_pixels / (num_classes * (counts + 1e-6))
+        weights = np.sqrt(total_valid_pixels / (num_classes * (counts + 1e-6)))
         
         # Convert to Tensor float
         return torch.from_numpy(weights).float()

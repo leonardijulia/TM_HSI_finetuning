@@ -1,5 +1,5 @@
 
-seed_everything: 42
+# THIS WON'T WORK BC OF TERRAMIND INTEGRATION (SCALAR_REGRESSION) --> designing hpo with optuna!
 experiment_name: hyperview_1_hpo
 run_name: optimization_run_v1
 
@@ -25,12 +25,15 @@ defaults:
       backbone_modalities:
         - S2L2A
       backbone_bands:
-        S2L2A: ["COASTAL_AEROSOL", "BLUE", "GREEN", "RED", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3", "NIR_BROAD", "NIR_NARROW", "WATER_VAPOR", "SWIR_1", "SWIR_2", "MASK"]
+        S2L2A: ["COASTAL_AEROSOL", "BLUE", "GREEN", "RED", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3",
+                "NIR_BROAD", "NIR_NARROW", "WATER_VAPOR", "SWIR_1", "SWIR_2", "MASK"]
       necks:
         - name: SelectIndices
           indices: [-1]
         - name: PermuteDims
           new_order: [0,2,1] 
+      decoder: IdentityDecoder
+      head_num_outputs: 4
       freeze_backbone: false
       freeze_decoder: false
     num_outputs: 4
@@ -43,10 +46,6 @@ tasks:
     direction: min
     metric: val/loss 
     loss: mse
-    model_args:
-      decoder: IdentityDecoder
-      head_num_outputs: 4
-      num_outputs: 4
     datamodule:
       class_path: src.datamodules.hyperview_1.Hyperview1NonGeoDataModule
       init_args:
