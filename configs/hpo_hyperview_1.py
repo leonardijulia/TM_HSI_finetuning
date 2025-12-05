@@ -24,7 +24,7 @@ def create_model(trial_params):
       "backbone_img_size": 224,
       "backbone_in_chans": 13,
       "backbone_bands": {"S2L2A": ["COASTAL_AEROSOL", "BLUE", "GREEN", "RED", "RED_EDGE_1", "RED_EDGE_2", 
-                                   "RED_EDGE_3", "NIR_BROAD", "NIR_NARROW", "WATER_VAPOR", "SWIR_1", "SWIR_2",]},
+                                   "RED_EDGE_3", "NIR_BROAD", "NIR_NARROW", "WATER_VAPOR", "SWIR_1", "SWIR_2", "MASK"]},
 
       "necks": [{"name": "SelectIndices",
                  "indices": [-1]},
