@@ -48,8 +48,15 @@ class Hyperview1NonGeoDataModule(NonGeoDataModule):
         self.stats_path = Path(stats_path)
 
         # Albumentations CenterCrop transform
-        self.transform = A.Compose([
+        self.train_transform = A.Compose([
             A.D4(),
+            A.Resize(height=resize_size, width=resize_size),
+            A.CoarseDropout(max_holes=8, max_height=32, max_width=32, min_holes=1, 
+                             min_height=16, min_width=16, fill_value=0, p=0.2),
+            A.GaussNoise(var_limit=(0.001, 0.01), mean=0, per_channel=True, p=0.2)
+        ])
+        
+        self.val_transform = A.Compose([
             A.Resize(height=resize_size, width=resize_size)
         ])
 
@@ -59,7 +66,7 @@ class Hyperview1NonGeoDataModule(NonGeoDataModule):
             data_root=self.data_root,
             split="train",
             bands=self.bands,
-            transform=self.transform,
+            transform=None,
             stats_path=self.stats_path,
             target_mean=None,
             target_std=None
@@ -73,7 +80,7 @@ class Hyperview1NonGeoDataModule(NonGeoDataModule):
             
         labels = np.stack([full_train_dataset.samples[i]["label"] for i in train_subset.indices])
         self.target_mean = labels.mean(axis=0)
-        self.target_std = labels.std(axis=0) + 1e-6
+        self.target_std = labels.std(axis=0) + 1e-4
         
         if stage in ["fit", "validate", "val"]:
 
@@ -81,7 +88,7 @@ class Hyperview1NonGeoDataModule(NonGeoDataModule):
                 data_root=self.data_root,
                 split="train",
                 bands=self.bands,
-                transform=self.transform,
+                transform=self.train_transform,
                 stats_path=self.stats_path,
                 target_mean=self.target_mean,
                 target_std=self.target_std,
@@ -90,9 +97,9 @@ class Hyperview1NonGeoDataModule(NonGeoDataModule):
             
             self.val_dataset = self.dataset_class(
                 data_root=self.data_root,
-                split="train",
+                split="val",
                 bands=self.bands,
-                transform=self.transform,
+                transform=self.val_transform,
                 stats_path=self.stats_path,
                 target_mean=self.target_mean,
                 target_std=self.target_std,
@@ -103,9 +110,9 @@ class Hyperview1NonGeoDataModule(NonGeoDataModule):
             
             self.test_dataset = self.dataset_class(
                 data_root=self.data_root,
-                split="train",
+                split="val",
                 bands=self.bands,
-                transform=self.transform,
+                transform=self.val_transform,
                 stats_path=self.stats_path,
                 target_mean=self.target_mean,
                 target_std=self.target_std,
@@ -118,5 +125,5 @@ class Hyperview1NonGeoDataModule(NonGeoDataModule):
                 data_root=self.data_root,
                 split="test",
                 bands=self.bands,
-                transform=self.transform,
+                transform=self.val_transform,
             )

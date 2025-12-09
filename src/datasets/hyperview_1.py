@@ -38,6 +38,10 @@ class Hyperview1NonGeo(NonGeoDataset):
             "bands": ("B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B09", "B11", "B12"),
             "indices": [0, 9, 30, 63, 76, 87, 101, 116, 126, 149, 149, 149]
         },
+        "s2l2a_nored": {
+            "bands": ("B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B09"),
+            "indices": [0, 9, 30, 63, 76, 87, 101, 116, 126, 149]
+        },
         "rgb": {
             "bands": ("RED", "GREEN", "BLUE"),
             "indices": [61, 32, 7]
@@ -45,7 +49,7 @@ class Hyperview1NonGeo(NonGeoDataset):
     }
     
     rgb_for_vis = {"s2l2a": [3, 2, 1],
-                   "hls": [2,1,0]}
+                   "hls": [2, 1, 0]}
     
     gt_file = 'train_gt.csv'
     soil_params = ["P", "K", "Mg", "pH"]
@@ -56,8 +60,8 @@ class Hyperview1NonGeo(NonGeoDataset):
             split: str = "train",
             gt_file: str = gt_file,
             stats_path: Path = None,
-            target_mean: float | None = None,
-            target_std: float | None = None,
+            target_mean: list[float] | None = None,
+            target_std: list[float] | None = None,
             bands: str = 's2l2a',
             subset_idx: list[int] |None = None,
             transform: A.Compose | None = None,):
@@ -73,13 +77,13 @@ class Hyperview1NonGeo(NonGeoDataset):
         except FileNotFoundError:
             raise MisconfigurationException("Missing statistics! Ensure mu.npy and sigma.npy are available.")
 
-        self.normalizer = NormalizeMeanStd(mean=mean, std=std, indices="hyperview_1")
+        self.normalizer = NormalizeMeanStd(mean=mean, std=std, indices="hyperview_1_nored")
         self.split = split
         self.data_root = Path(data_root)
         self.test_root = self.data_root / "test"
         self.subset_idx = subset_idx
-        self.target_mean = np.array(target_mean, dtype=np.float32)
-        self.target_std = np.array(target_std, dtype=np.float32)
+        self.target_mean = target_mean
+        self.target_std = target_std
         csv_file = self.data_root / gt_file
         df = pd.read_csv(csv_file)
         self.bands = self.BAND_SETS[bands]["bands"]
@@ -87,7 +91,7 @@ class Hyperview1NonGeo(NonGeoDataset):
 
         self.samples = []
         
-        if split in ["train"]:
+        if split in ["train", "val"]:
             for _, row in df.iterrows():
                 patch_id = int(row["sample_index"])
                 patch_path = self.data_root / "train" / f"{patch_id}.npz"
@@ -116,18 +120,35 @@ class Hyperview1NonGeo(NonGeoDataset):
     
     def __getitem__(self, index: int):
         sample = self.samples[index]
-        patch = self._load_file(sample["patch_path"])
+        data, mask = self._load_file(sample["patch_path"])
         
         if self.transform:
-            patch = self.transform(image=patch.permute(1,2,0).numpy())["image"] # Albumentations expects (H, W, C)
-            patch = torch.from_numpy(patch).permute(2,0,1).float()  # back to (C, H, W)
+            # Albumentations expects [H, W, C]
+            data_np = data.permute(1, 2, 0).numpy()
+            mask_np = mask.permute(1, 2, 0).numpy() # Shape (H, W, 1)
+
+            # Albumentations will use Nearest Neighbor for 'mask' and Linear for 'image'
+            transformed = self.transform(image=data_np, mask=mask_np)
+            
+            data_np = transformed["image"]
+            mask_np = transformed["mask"]
+
+            # Back to [C, H, W]
+            data = torch.from_numpy(data_np).permute(2, 0, 1).float()
+            mask = torch.from_numpy(mask_np).permute(2, 0, 1).float()
+            
+        # 3. concatenate the image with mask
+        output_tensor = torch.cat([data, mask], dim=0)
             
         if self.split in ["train", "val"]:
             label = sample["label"]
-            label = (label - self.target_mean) / (self.target_std)
-            out = {"image": patch, "label": torch.tensor(label, dtype=torch.float32)}
+            if self.target_mean is not None and self.target_std is not None:
+                self.target_mean = np.array(self.target_mean, dtype=np.float32)
+                self.target_std = np.array(self.target_std, dtype=np.float32)
+                label = (label - self.target_mean) / (self.target_std)
+            out = {"image": output_tensor, "label": torch.tensor(label, dtype=torch.float32)}
         else:
-            out = {"image": patch}
+            out = {"image": output_tensor}
               
         return out
     
@@ -142,9 +163,8 @@ class Hyperview1NonGeo(NonGeoDataset):
         norm_data = self.normalizer(data_tensor[None, :, :, :]).squeeze(0)  # (bands, H, W)
         
         mask_tensor = torch.from_numpy(mask[None, :, :])  # (1, H, W)
-        input_tensor = torch.cat([norm_data, mask_tensor], dim=0)
         
-        return input_tensor  # (C, H, W)
+        return norm_data, mask_tensor  # (C, H, W)
     
     # def plot(self, 
     #          sample: dict[str, Tensor], 
