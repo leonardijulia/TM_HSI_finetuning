@@ -107,7 +107,7 @@ class Hyperview1NonGeo(NonGeoDataset):
                 self.samples = [self.samples[i] for i in subset_idx] 
         
         elif split == "test":
-            test_files = glob.glob(str(self.test_root / "*.npz"))
+            test_files = sorted(glob.glob(str(test_root / "*.npz")), key=lambda x: int(Path(x).stem.split("_")[-1]))
             for file in test_files:
                 self.samples.append({
                     "patch_path": Path(file)
@@ -163,6 +163,7 @@ class Hyperview1NonGeo(NonGeoDataset):
         norm_data = self.normalizer(data_tensor[None, :, :, :]).squeeze(0)  # (bands, H, W)
         
         mask_tensor = torch.from_numpy(mask[None, :, :])  # (1, H, W)
+        norm_data = norm_data * mask_tensor  # apply mask
         
         return norm_data, mask_tensor  # (C, H, W)
     
