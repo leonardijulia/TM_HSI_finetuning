@@ -34,13 +34,27 @@ class Hyperview2NonGeo(NonGeoDataset):
             "bands": ("B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B09", "B11", "B12"),
             "indices": [0, 9, 30, 63, 76, 87, 101, 116, 126, 149, 149, 149]
         },
+        "s2l2a_nored": {
+            "bands": ("B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B09"),
+            "indices": [0, 9, 30, 63, 76, 87, 101, 116, 126, 149]
+        },
         "rgb": {
             "bands": ("RED", "GREEN", "BLUE"),
             "indices": [61, 32, 7]
         },
     }
+    
+    sensor = {
+        "hsi_air": "hsi_airborne",
+        "hsi_sat": "hsi_satellite", 
+        "msi_sat": "msi_satellite"
+    }
+    
+    rgb_for_vis = {"s2l2a": [3, 2, 1],
+                   "hls": [2, 1, 0]}
+    
     gt_file = 'train_gt.csv'
-    soil_params = ["P", "K", "Mg", "pH"]
+    soil_params = ["B", "Cu", "Zn", "Fe", "S", "Mn"]
     
     def __init__(
             self,
@@ -50,6 +64,8 @@ class Hyperview2NonGeo(NonGeoDataset):
             target_mean: float | None = None,
             target_std: float | None = None,
             bands: str = 's2l2a',
+            subset_idx: list[int] |None = None,
+            sensor: str = "hsi_air",
             transform: A.Compose | None = None,):
         
         super().__init__()
@@ -63,7 +79,8 @@ class Hyperview2NonGeo(NonGeoDataset):
         df = pd.read_csv(csv_file)
         self.bands = self.BAND_SETS[bands]["bands"]
         self.band_indeces = self.BAND_SETS[bands]["indices"]
-
+        self.sensor_path = self.sensor[sensor]
+        self.subset_idx = subset_idx
         self.samples = []
         
         if split in ["train", "val"]:

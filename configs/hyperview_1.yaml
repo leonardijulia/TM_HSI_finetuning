@@ -26,7 +26,7 @@ trainer:
       init_args:
         monitor: val/loss
         mode: min
-        patience: 80
+        patience: 20
         min_delta: 0.001
 
   max_epochs: 400
@@ -64,8 +64,8 @@ model:
 
       head_num_outputs: 4
       head_dropout: 0.2
-      #head_dim_list: [512, 256]
-      head_linear_after_pool: false
+      head_dim_list: [256]
+      head_linear_after_pool: true
 
     num_outputs: 4
     loss: src.losses.hyperview_mse_loss.CustomMSELoss
@@ -78,11 +78,15 @@ model:
 optimizer:
   class_path: torch.optim.AdamW
   init_args:
-    lr: 5e-4
-    weight_decay: 0.05
+    lr: 5.4e-5
+    weight_decay: 0.01
 
 lr_scheduler:
-  class_path: CosineAnnealingLR
+  class_path: ReduceLROnPlateau
   init_args:
-    T_max: 400
-    eta_min: 1e-6
+    mode: min
+    monitor: val/loss
+    factor: 0.5
+    patience: 10
+    verbose: true
+    min_lr: 1.0e-7
