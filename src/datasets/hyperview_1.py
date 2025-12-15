@@ -77,7 +77,6 @@ class Hyperview1NonGeo(NonGeoDataset):
         except FileNotFoundError:
             raise MisconfigurationException("Missing statistics! Ensure mu.npy and sigma.npy are available.")
 
-        self.normalizer = NormalizeMeanStd(mean=mean, std=std, indices="hyperview_1_nored")
         self.split = split
         self.data_root = Path(data_root)
         self.test_root = self.data_root / "test"
@@ -88,6 +87,7 @@ class Hyperview1NonGeo(NonGeoDataset):
         df = pd.read_csv(csv_file)
         self.bands = self.BAND_SETS[bands]["bands"]
         self.band_indices = self.BAND_SETS[bands]["indices"]
+        self.normalizer = NormalizeMeanStd(mean=mean, std=std, indices=self.band_indices)
 
         self.samples = []
         
@@ -107,7 +107,7 @@ class Hyperview1NonGeo(NonGeoDataset):
                 self.samples = [self.samples[i] for i in subset_idx] 
         
         elif split == "test":
-            test_files = sorted(glob.glob(str(test_root / "*.npz")), key=lambda x: int(Path(x).stem.split("_")[-1]))
+            test_files = sorted(glob.glob(str(self.test_root / "*.npz")), key=lambda x: int(Path(x).stem.split("_")[-1]))
             for file in test_files:
                 self.samples.append({
                     "patch_path": Path(file)

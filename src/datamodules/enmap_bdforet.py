@@ -20,7 +20,8 @@ class EnMAPBDForetDataModule(NonGeoDataModule):
     """
     LightningDataModule for the EnMAP-BDForet dataset.
     """
-
+    s2l2a_indices = [6, 16, 30, 48, 54, 59, 65, 71, 75, 90, 131, 172]
+    
     def __init__(
         self,
         batch_size: int = 64,
@@ -69,7 +70,7 @@ class EnMAPBDForetDataModule(NonGeoDataModule):
         )
         
         self.norm_aug = K.AugmentationSequential(
-            NormalizeMeanStd(mean=mean, std=std),
+            NormalizeMeanStd(mean=mean, std=std, indices=self.s2l2a_indices),
             data_keys=["image"])
         
     def setup(self, stage: str = None) -> None:

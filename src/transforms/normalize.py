@@ -13,14 +13,11 @@ class NormalizeMeanStd(nn.Module):
     
     The module is compatible with Kornia and PyTorch Lightning augmentation pipelines.
     """
-    indices = {"enmap": [6, 16, 30, 48, 54, 59, 65, 71, 75, 90, 131, 172],
-               "hyperview_1": [0, 9, 30, 63, 76, 87, 101, 116, 126, 149, 149, 149],
-               "hyperview_1_nored":[0, 9, 30, 63, 76, 87, 101, 116, 126, 149]}
     
     def __init__(self, 
                  mean: Tensor, 
                  std: Tensor, 
-                 indices: str = "enmap"):
+                 indices: list[int]):
         """Initialize the normalization module with precomputed statistics.
         
         Args:
@@ -33,9 +30,9 @@ class NormalizeMeanStd(nn.Module):
         """
         super().__init__()
         
-        assert indices in self.indices.keys(), f"Invalid indices set '{indices}'. Must be one of {list(self.indices.keys())}"
-        self.mean = mean[self.indices[indices]].float()
-        self.std = std[self.indices[indices]].float()
+        self.indices = indices
+        self.mean = mean[self.indices].float()
+        self.std = std[self.indices].float()
 
 
     @torch.no_grad()  
