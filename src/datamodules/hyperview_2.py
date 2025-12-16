@@ -1,27 +1,29 @@
 """
-Hyperview1 DataModule for patch-wise multivariate regression.
+Hyperview2 DataModule for patch-wise multivariate regression.
 """
 
 from typing import Any, Sequence, Optional
 from pathlib import Path
+import numpy as np
 
 import torch
-from torch.utils.data import Subset
+from torch.utils.data import random_split
 import albumentations as A
 from torchgeo.datamodules import NonGeoDataModule
 
-from src.datasets.hyperview_1 import Hyperview1NonGeo
+from src.datasets.hyperview_2 import Hyperview2NonGeo
 
-class Hyperview1NonGeoDataModule(NonGeoDataModule):
-    """NonGeo LightningDataModule for the Hyperview-1 challenge dataset."""
+class Hyperview2NonGeoDataModule(NonGeoDataModule):
+    """NonGeo LightningDataModule for the Hyperview-2 challenge dataset."""
 
     def __init__(
         self,
         data_root: str,
         batch_size: int = 4,
         num_workers: int = 2,
-        #crop_size: int = 11,
-        resize_size: int = 128,
+        stats_path: str = "/leonardo/home/userexternal/jleonard/experiments/data/statistics/hyperview_2",
+        resize_size: int = 224,
+        sensor: str = "hsi_air",
         bands: str = "s2l2a",
         target_mean: Optional[Sequence[float]] = None,
         target_std: Optional[Sequence[float]] = None,
@@ -38,50 +40,98 @@ class Hyperview1NonGeoDataModule(NonGeoDataModule):
             target_std: Optional precomputed std of targets.
         """
         # Pass dataset class and loader params to parent
-        super().__init__(dataset_class=Hyperview1NonGeo, batch_size=batch_size, num_workers=num_workers)
+        super().__init__(dataset_class=Hyperview2NonGeo, batch_size=batch_size, num_workers=num_workers)
 
         self.data_root = Path(data_root)
         self.bands = bands
         self.target_mean = target_mean
         self.target_std = target_std
+        self.stats_path = Path(stats_path)
+        self.sensor = sensor
 
         # Albumentations CenterCrop transform
-        self.transform = A.Compose([
-            #A.CenterCrop(height=crop_size, width=crop_size),
+        self.train_transform = A.Compose([
+            A.D4(),
+            A.Resize(height=resize_size, width=resize_size),
+            A.CoarseDropout(max_holes=8, max_height=32, max_width=32, min_holes=1, 
+                             min_height=16, min_width=16, fill_value=0, p=0.2),
+            A.GaussNoise(var_limit=(0.001, 0.01), mean=0, per_channel=True, p=0.2)
+        ])
+        
+        self.val_transform = A.Compose([
             A.Resize(height=resize_size, width=resize_size)
         ])
 
     def setup(self, stage: Optional[str] = None) -> None:
         """Create train/val/test datasets."""
-        if stage in ("fit", None):
-            full_train_dataset = self.dataset_class( 
+        
+        full_train_dataset = self.dataset_class( 
+            data_root=self.data_root,
+            split="train",
+            bands=self.bands,
+            transform=None,
+            stats_path=self.stats_path,
+            target_mean=None,
+            target_std=None,
+            sensor=self.sensor
+        )
+            
+        # Create 80/20 train/val split
+        val_size = int(0.2 * len(full_train_dataset))
+        train_size = len(full_train_dataset) - val_size
+            
+        train_subset, val_subset = random_split(full_train_dataset, [train_size, val_size], generator=torch.Generator().manual_seed(42),)
+            
+        labels = np.stack([full_train_dataset.samples[i]["label"] for i in train_subset.indices])
+        self.target_mean = labels.mean(axis=0)
+        self.target_std = labels.std(axis=0) + 1e-4
+        
+        if stage in ["fit", "validate", "val"]:
+
+            self.train_dataset = self.dataset_class(
                 data_root=self.data_root,
                 split="train",
                 bands=self.bands,
-                transform=self.transform,
+                transform=self.train_transform,
+                stats_path=self.stats_path,
                 target_mean=self.target_mean,
-                target_std=self.target_std
+                target_std=self.target_std,
+                subset_idx=train_subset.indices,
+                sensor=self.sensor
             )
-            
-            # Create 80/20 train/val split
-            val_size = int(0.2 * len(full_train_dataset))
-            train_size = len(full_train_dataset) - val_size
-            
-            self.train_dataset, self.val_dataset = Subset(full_train_dataset, range(train_size)), Subset(full_train_dataset, range(train_size, len(full_train_dataset)))
             
             self.val_dataset = self.dataset_class(
                 data_root=self.data_root,
                 split="val",
                 bands=self.bands,
-                transform=self.transform,
+                transform=self.val_transform,
+                stats_path=self.stats_path,
                 target_mean=self.target_mean,
-                target_std=self.target_std
+                target_std=self.target_std,
+                subset_idx=val_subset.indices,
+                sensor=self.sensor
             )
-
-        if stage in ("test", None):
+            
+        if stage in ["test"]:
+            
             self.test_dataset = self.dataset_class(
+                data_root=self.data_root,
+                split="val",
+                bands=self.bands,
+                transform=self.val_transform,
+                stats_path=self.stats_path,
+                target_mean=self.target_mean,
+                target_std=self.target_std,
+                subset_idx=val_subset.indices,
+                sensor=self.sensor
+            )       
+            
+        if stage in ["predict"]:
+            
+            self.predict_dataset = self.dataset_class(
                 data_root=self.data_root,
                 split="test",
                 bands=self.bands,
-                transform=self.transform
+                transform=self.val_transform,
+                sensor=self.sensor
             )

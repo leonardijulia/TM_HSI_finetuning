@@ -122,7 +122,7 @@ class Hyperview2NonGeo(NonGeoDataset):
         
         if split in ["train", "val"]:
             for _, row in df.iterrows():
-                patch_id = f"{int(row["sample_index"]):04d}"
+                patch_id = f"{int(row['sample_index']):04d}"
                 patch_path = self.data_root / "train" / self.sensors[sensor] / f"{patch_id}.npz"
                 
                 # target vector
@@ -150,7 +150,7 @@ class Hyperview2NonGeo(NonGeoDataset):
     
     def __getitem__(self, index: int):
         sample = self.samples[index]
-        patch = self._load_file(sample["patch_path"])
+        data, mask = self._load_file(sample["patch_path"])
         
         if self.transform:
             data_np = data.permute(1, 2, 0).numpy()
@@ -166,7 +166,7 @@ class Hyperview2NonGeo(NonGeoDataset):
             data = torch.from_numpy(data_np).permute(2, 0, 1).float()
             mask = torch.from_numpy(mask_np).permute(2, 0, 1).float()
         
-         output_tensor = torch.cat([data, mask], dim=0)
+        output_tensor = torch.cat([data, mask], dim=0)
             
         if self.split in ["train", "val"]:
             label = sample["label"]

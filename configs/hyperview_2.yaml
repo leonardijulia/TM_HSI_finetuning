@@ -9,36 +9,38 @@ trainer:
     class_path: lightning.pytorch.loggers.MLFlowLogger
     init_args:
       experiment_name: hyperview_2
-      tracking_uri: http://localhost:5000
-      run_name: '{now:%Y-%m-%d_%H-%M-%S}' 
+      tracking_uri: file:/leonardo/home/userexternal/jleonard/experiments/outputs/mlruns
+      run_name: first_run_151225 
       
   callbacks:
     - class_path: RichProgressBar
     - class_path: LearningRateMonitor
     - class_path: ModelCheckpoint
       init_args:
-        dirpath: ./outputs/hyperview_2/checkpoints
+        dirpath: /leonardo/home/userexternal/jleonard/experiments/outputs/hyperview_1/checkpoints
         filename: '{epoch:02d}'
         monitor: val/loss
         mode: min
         save_last: true
-        save_top_k: 3
+        save_top_k: 1
     - class_path: EarlyStopping
       init_args:
         monitor: val/loss
         mode: min
         patience: 20
+        min_delta: 0.001
 
   max_epochs: 400
   log_every_n_steps: 5
-  default_root_dir: .
+  default_root_dir: /leonardo/home/userexternal/jleonard/experiments/
 data: 
-  class_path: src.datamodules.hyperview_1.Hyperview1NonGeoDataModule
+  class_path: src.datamodules.hyperview_1.Hyperview2NonGeoDataModule
   init_args:
-    batch_size: 32 # following the setup of SpectralEarth
+    batch_size: 64 
     num_workers: 2
     bands: s2l2a # Picking the indices corresponding to S2L2A
-    data_root: data/hyperview_2/
+    sensor: hsi_air
+    data_root: /leonardo/home/userexternal/jleonard/experiments/data/hyperview_2/
 
 model:
   class_path: terratorch.tasks.ScalarRegressionTask
@@ -46,13 +48,14 @@ model:
     model_factory: EncoderDecoderFactory
     model_args:
       backbone: terramind_v1_base
-      backbone_ckpt_path: ./src/ckpt/TerraMind_v1_base.pt
+      backbone_ckpt_path: /leonardo/home/userexternal/jleonard/experiments/src/ckpt/TerraMind_v1_base.pt
       backbone_img_size: 224
-      backbone_in_chans: 12
+      backbone_in_chans: 13
       backbone_modalities:
         - S2L2A
       backbone_bands:
-        S2L2A: ["COASTAL_AEROSOL", "BLUE", "GREEN", "RED", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3", "NIR_BROAD", "NIR_NARROW", "WATER_VAPOR", "SWIR_1", "SWIR_2",]
+        S2L2A: ["COASTAL_AEROSOL", "BLUE", "GREEN", "RED", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3", "NIR_BROAD", 
+                "NIR_NARROW", "WATER_VAPOR", "SWIR_1", "SWIR_2", "MASK"]
       necks:
         - name: SelectIndices
           indices: [-1]
@@ -62,21 +65,29 @@ model:
       decoder: IdentityDecoder # following SpectralEarth but from KP-LABS here maybe better a UNet or UPerNet
 
       head_num_outputs: 4
-      head_dropout: 0.2
-    loss: src.losses.hyperview_mse_loss.CustomMSELoss
+      head_dropout: 0.237175
+      head_dim_list: [256]
+      head_linear_after_pool: true
+
+    num_outputs: 4
+    loss: mse
     freeze_backbone: false
     freeze_decoder: false
-    path_to_record_metrics: ./outputs/hyperview_2/
+    path_to_record_metrics: /leonardo/home/userexternal/jleonard/experiments/outputs/hyperview_2/
     var_names: ['Fe', 'Zn', 'B', 'Cu', 'S', 'Mn']
 
 optimizer:
   class_path: torch.optim.AdamW
   init_args:
-    lr: 1e-3
-    weight_decay: 1e-4 #?
+    lr: 5.4e-5
+    weight_decay: 0.01
 
 lr_scheduler:
-  class_path: CosineAnnealingLR
+  class_path: ReduceLROnPlateau
   init_args:
-    T_max: 10
-    eta_min: 1e-5
+    mode: min
+    monitor: val/loss
+    factor: 0.5
+    patience: 10
+    verbose: true
+    min_lr: 1.0e-7
