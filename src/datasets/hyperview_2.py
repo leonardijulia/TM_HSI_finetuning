@@ -112,6 +112,8 @@ class Hyperview2NonGeo(NonGeoDataset):
         self.split = split
         self.data_root = Path(data_root)
         self.test_root = self.data_root / "test"
+        self.target_mean = target_mean
+        self.target_std = target_std
         csv_file = self.data_root / gt_file
         df = pd.read_csv(csv_file)
         self.bands = self.BAND_SETS[sensor][bands]["bands"]
