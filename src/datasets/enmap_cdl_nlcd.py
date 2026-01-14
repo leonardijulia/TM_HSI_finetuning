@@ -1,6 +1,7 @@
 # Based on: https://github.com/microsoft/torchgeo/blob/main/torchgeo/datasets/ssl4eo_benchmark.py
 
 import os
+from pathlib import Path
 from typing import Callable, Optional
 
 from torchgeo.datasets.cdl import CDL
@@ -25,11 +26,12 @@ class EnMAPCDLNLCDDataset(NonGeoDataset):
 
     valid_products = ["cdl", "nlcd"]
     valid_splits = ["train", "val", "test"]
-
+    valid_band_selection = ["naive", "srf_grouping"]
+    
     image_root = "{}"
     mask_root = "{}"
     split_path = "splits/{}.txt"
-    
+   
     s2l2a_indices = [6, 16, 30, 48, 54, 59, 65, 71, 75, 90, 131, 172]
     
     rgb_indices = {
@@ -49,6 +51,9 @@ class EnMAPCDLNLCDDataset(NonGeoDataset):
         classes: Optional[list[int]] = [0, 1, 2, 3, 4, 5, 6, 45, 54, 69, 72, 75, 76, 204, 210],
         transforms: Optional[Callable[[dict[str, Tensor]], dict[str, Tensor]]] = None,
         num_bands: int = 12,
+        band_selection: str = "naive",
+        indices: Optional[list[int]] = None,
+        srf_weight_matrix: Optional[str, Path] = None,
         raw_mask: bool = False,
         subset_percent: Optional[float] = None,
 
@@ -63,6 +68,8 @@ class EnMAPCDLNLCDDataset(NonGeoDataset):
             classes: List of class IDs to include (default: all classes)
             transforms: Optional transformation function
             num_bands: Number of spectral bands (default: 202 for EnMAP)
+            band_selection: strategy of loading the HSI cube  ('naive' or 'srf_grouping')
+            srf_weight_matrix: the normalized matrix of weights used for loading grouped bands of the HSI image.
             raw_mask: If True, return raw mask without class mapping
             subset_percent: Optional fraction of data to use (for debugging)
         """
@@ -76,7 +83,19 @@ class EnMAPCDLNLCDDataset(NonGeoDataset):
             split in self.valid_splits
         ), f"Only supports one of {self.valid_splits}, but found {split}."
         self.split = split
-
+        
+        assert (
+            band_selection in self.valid_band_selection
+        ), f"Only supports one of {self.valid_band_selection}, but found {band_selection}"
+        
+        if band_selection == "srf_grouping":
+            if srf_weight_matrix == None:
+                raise ValueError("SRF grouping strategy requires the srf weight matrix!")                
+            self.srf_weight_matrix = np.load(srf_weight_matrix).astype(np.float32)
+            
+        self.band_selection = band_selection
+        self.indices = indices if indices is not None else self.s2l2a_indices
+        
         self.cmap = self.cmaps[product]
         if classes is None:
             classes = list(self.cmap.keys())
@@ -156,7 +175,6 @@ class EnMAPCDLNLCDDataset(NonGeoDataset):
                                  "val": [self.sample_collection[idx] for idx in split_indices["val"]],
                                  "test": [self.sample_collection[idx] for idx in split_indices["test"]]}
         
-        
         return train_val_test_images
     
     def read_split_file(self) -> list:
@@ -206,8 +224,6 @@ class EnMAPCDLNLCDDataset(NonGeoDataset):
         """
         return len(self.sample_collection)
     
-
-
     def _load_image(self, path: str) -> Tensor:
         """Load the input image.
 
@@ -218,7 +234,22 @@ class EnMAPCDLNLCDDataset(NonGeoDataset):
             image
         """
         with rasterio.open(path) as src:
-            image = torch.from_numpy(src.read(self.s2l2a_indices)).float()
+            if self.band_selection == "naive":
+                image = src.read(self.indices)
+                image = torch.from_numpy(image).float()
+                
+            elif self.band_selection == "srf_grouping":
+                image = src.read() # (C, H, W)
+                c, h, w = image.shape
+                assert c == self.srf_weight_matrix.shape[0], 
+                    f"Mismatch! Image has {c} bands, but weighs have {self.srf_weight_matrix.shape[0]}"
+                    
+                # (C, H, W) -> (C, H*W) -> Transpose -> (H*W, C)
+                flattened = image.reshape(c, -1).T
+                grouped= np.dot(flattened, self.srf_weight_matrix)
+                grouped = grouped.reshape(h, w, -1).transpose(2, 0, 1)
+                image = torch.from_numpy(grouped).float()
+                
         return image
 
     def _load_mask(self, path: str) -> Tensor:
