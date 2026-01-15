@@ -108,6 +108,19 @@ class EnMAPCDLNLCDDataModule(NonGeoDataModule):
             NormalizeMeanStd(mean=mean, std=std),
             data_keys=["image"])
     
+    def setup(self, stage: str = None) -> None:
+        """
+        Override to define train/val/test/predict datasets for the given stage.
+        """
+        if stage in ["fit"]:
+            self.train_dataset = self.dataset_class(split="train", **self.kwargs)
+        if stage in ['fit', 'validate']:
+            self.val_dataset = self.dataset_class(split="val", **self.kwargs)
+        if stage in ['test']:
+            self.test_dataset = self.dataset_class(split="test", **self.kwargs)
+        if stage in ["predict"]: 
+            self.predict_dataset = self.dataset_class(split="test", **self.kwargs)
+    
     def on_after_batch_transfer(
         self, batch: dict[str, Tensor], dataloader_idx: int
     ) -> dict[str, Tensor]:

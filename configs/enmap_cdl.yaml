@@ -76,8 +76,8 @@ model:
     freeze_backbone: false
     freeze_decoder: false
     path_to_record_metrics: /leonardo/home/userexternal/jleonard/experiments/outputs/enmap_cdl/
-    class_names: ["Background", "Corn", "Cotton", "Rice", "Sorghum", "Soybeans", "Sunflower", "Sugarcane", 
-                  "Tomatoes", "Grapes", "Citrus", "Almonds", "Walnuts", "Pistachios", "Prunes"]
+    class_names: ["Corn", "Cotton", "Rice", "Sorghum", "Soybeans", "Sunflower", "Sugarcane", 
+                  "Tomatoes", "Grapes", "Citrus", "Almonds", "Walnuts", "Pistachios", "Prunes", "Background"]
 
 optimizer:
   class_path: torch.optim.AdamW

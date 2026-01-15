@@ -122,7 +122,8 @@ class EnMAPCDLNLCDDataset(NonGeoDataset):
 
         # First remove class 0 from the list of classes
         self.classes.remove(0)
-        # Then add it back to the end of the list. This ensures that the background class is always the last class, which can be ignored during training.
+        # Then add it back to the end of the list. This ensures that the background class is always the last class, 
+        # which can be ignored during training.
         self.classes.append(0)
 
         # Map chosen classes to ordinal numbers, all others mapped to background class
