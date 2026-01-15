@@ -7,9 +7,9 @@ from kornia.constants import DataKey, Resample
 from torchgeo.datamodules.geo import NonGeoDataModule
 from torchgeo.samplers.utils import _to_tuple
 from torchgeo.datamodules.utils import MisconfigurationException
-
-from datasets.enmap_cdl_nlcd import EnMAPCDLNLCDDataset
-from transforms.normalize import NormalizeMeanStd
+from torch import Tensor
+from src.datasets.enmap_cdl_nlcd import EnMAPCDLNLCDDataset
+from src.transforms.normalize import NormalizeMeanStd
 
 class EnMAPCDLNLCDDataModule(NonGeoDataModule):
     """LightningDataModule for the EnMAP-CDL/NLCD dataset."""
@@ -41,18 +41,17 @@ class EnMAPCDLNLCDDataModule(NonGeoDataModule):
             MisconfigurationException: If the normalization statistics files are not found
                 at the specified stats_path.
         """
-        super().__init__(EnMAPCDLNLCDDataset, batch_size, num_workers, **kwargs)
-
         self.patch_size = _to_tuple(patch_size)
         self.band_selection = band_selection
         self.indices = indices if indices is not None else [6, 16, 30, 48, 54, 59, 65, 71, 75, 90, 131, 172]
         self.srf_weight_path = Path(stats_path, srf_weight_file)
         self.aug = None
-        self.kwargs.update({
-            "band_selection": band_selection,
-            "indices": self.indices,
-            "srf_weight_matrix": self.srf_weight_path 
-        })
+        
+        kwargs["band_selection"] = band_selection
+        kwargs["indices"] = self.indices
+        kwargs["srf_weight_matrix"] = self.srf_weight_path
+        
+        super().__init__(EnMAPCDLNLCDDataset, batch_size, num_workers, **kwargs)
         
         try:
             raw_mean = torch.tensor(np.load(f"{stats_path}/mu.npy"))

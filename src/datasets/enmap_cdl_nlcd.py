@@ -2,7 +2,7 @@
 
 import os
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable, Optional, Union
 
 from torchgeo.datasets.cdl import CDL
 from torchgeo.datasets.geo import NonGeoDataset
@@ -30,7 +30,7 @@ class EnMAPCDLNLCDDataset(NonGeoDataset):
     
     image_root = "{}"
     mask_root = "{}"
-    split_path = "splits/{}.txt"
+    split_path = os.path.join("data", "splits", "enmap_cdl", "{}.txt")
    
     s2l2a_indices = [6, 16, 30, 48, 54, 59, 65, 71, 75, 90, 131, 172]
     
@@ -44,7 +44,7 @@ class EnMAPCDLNLCDDataset(NonGeoDataset):
 
     def __init__(
         self,
-        root: str = "enmap_cdl",
+        root: str = "./data/enmap_cdl",
         sensor: str = "enmap",
         product: str = "cdl",
         split: str = "train",
@@ -53,7 +53,7 @@ class EnMAPCDLNLCDDataset(NonGeoDataset):
         num_bands: int = 12,
         band_selection: str = "naive",
         indices: Optional[list[int]] = None,
-        srf_weight_matrix: Optional[str, Path] = None,
+        srf_weight_matrix: Union[str, Path] = None,
         raw_mask: bool = False,
         subset_percent: Optional[float] = None,
 
@@ -241,8 +241,7 @@ class EnMAPCDLNLCDDataset(NonGeoDataset):
             elif self.band_selection == "srf_grouping":
                 image = src.read() # (C, H, W)
                 c, h, w = image.shape
-                assert c == self.srf_weight_matrix.shape[0], 
-                    f"Mismatch! Image has {c} bands, but weighs have {self.srf_weight_matrix.shape[0]}"
+                assert c == self.srf_weight_matrix.shape[0], f"Mismatch! Image has {c} bands, but weighs have {self.srf_weight_matrix.shape[0]}"
                     
                 # (C, H, W) -> (C, H*W) -> Transpose -> (H*W, C)
                 flattened = image.reshape(c, -1).T

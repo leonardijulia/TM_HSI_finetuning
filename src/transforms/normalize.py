@@ -44,4 +44,4 @@ class NormalizeMeanStd(nn.Module):
             Tensor: Normalized tensor with the same shape as the input.
         """
         
-       return (x - self.mean) / self.std
+        return (x - self.mean.to(x.device)) / self.std.to(x.device)
