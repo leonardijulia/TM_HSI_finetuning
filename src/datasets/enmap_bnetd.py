@@ -1,8 +1,10 @@
 import os
-from typing import Callable, Optional, List
+from typing import Callable, Optional, List, Union
+from pathlib import Path
 import torch
 from torch import Tensor
 import rasterio
+import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 
@@ -17,6 +19,7 @@ class EnMAPBNETDDataset(NonGeoDataset):
     """
 
     valid_splits = ["train", "val", "test"]
+    valid_band_selection = ["naive", "srf_grouping"]
 
     # Relative directories (with respect to the root)
     image_root = "enmap"         # e.g., directory containing images
@@ -28,12 +31,15 @@ class EnMAPBNETDDataset(NonGeoDataset):
 
     def __init__(
         self,
-        root: str = ".\data\enmap_bnetd",
+        root: str = "./data/enmap_bnetd",
         sensor: str = "enmap",
         split: str = "train",
         classes: Optional[List[int]] = [0, 1, 2, 3, 6, 9, 10, 13, 15, 16, 21],
         transforms: Optional[Callable[[dict[str, Tensor]], dict[str, Tensor]]] = None,
         num_bands: int = 12,
+        band_selection: str = "naive",
+        indices: Optional[list[int]] = None,
+        srf_weight_matrix: Union[str, Path] = None,
         raw_mask: bool = False,
     ) -> None:
         """Initialize the EnMAP-BNETD dataset.
@@ -60,6 +66,18 @@ class EnMAPBNETDDataset(NonGeoDataset):
             raise ValueError("The provided classes must include the background code 0.")
         
         self.split = split
+        
+        assert (
+            band_selection in self.valid_band_selection
+        ), f"Only supports one of {self.valid_band_selection}, but found {band_selection}"
+        
+        if band_selection == "srf_grouping":
+            if srf_weight_matrix == None:
+                raise ValueError("SRF grouping strategy requires the srf weight matrix!")                
+            self.srf_weight_matrix = np.load(srf_weight_matrix).astype(np.float32)
+            
+        self.band_selection = band_selection
+        self.indices = indices if indices is not None else self.s2l2a_indices
         self.root = root
         self.transforms = transforms
         self.raw_mask = raw_mask
@@ -121,9 +139,23 @@ class EnMAPBNETDDataset(NonGeoDataset):
     def _load_image(self, path: str) -> Tensor:
         """Load the TreeMap image using rasterio."""
         with rasterio.open(path) as src:
-            image = torch.from_numpy(src.read(self.s2l2a_indices)).float()  # shape: (bands, H, W)
+            if self.band_selection == "naive":
+                image = src.read(self.indices)
+                image = torch.from_numpy(image).float()
+                
+            elif self.band_selection == "srf_grouping":
+                image = src.read() # (C, H, W)
+                c, h, w = image.shape
+                assert c == self.srf_weight_matrix.shape[0], f"Mismatch! Image has {c} bands, but weighs have {self.srf_weight_matrix.shape[0]}"
+                    
+                # (C, H, W) -> (C, H*W) -> Transpose -> (H*W, C)
+                flattened = image.reshape(c, -1).T
+                grouped= np.dot(flattened, self.srf_weight_matrix)
+                grouped = grouped.reshape(h, w, -1).transpose(2, 0, 1)
+                image = torch.from_numpy(grouped).float()
+                
         return image
-
+    
     def _load_mask(self, path: str) -> Tensor:
         """Load the TreeMap mask using rasterio, and remap classes if needed."""
         with rasterio.open(path) as src:

@@ -11,7 +11,7 @@ trainer:
     init_args:
       experiment_name: enmap_bnetd
       tracking_uri: file:/leonardo/home/userexternal/jleonard/experiments/outputs/mlruns
-      run_name: '{now:%Y-%m-%d_%H-%M-%S}'
+      run_name: 150126_srf_grouping_run
 
   callbacks:
     - class_path: RichProgressBar
@@ -24,8 +24,8 @@ trainer:
         filename: '{epoch:02d}'
         monitor: val/loss
         mode: min
-        save_last: true
-        save_top_k: 3
+        save_last: false
+        save_top_k: 1
     - class_path: EarlyStopping
       init_args:
         monitor: val/loss
@@ -41,6 +41,7 @@ data:
     batch_size: 16
     num_workers: 8
     patch_size: 224
+    band_selection: "srf_grouping"
 
 model:
   class_path: terratorch.tasks.SemanticSegmentationTask
@@ -83,4 +84,5 @@ lr_scheduler:
   class_path: CosineAnnealingLR
   init_args:
     T_max: 100
+    eta_min: 1e-5
     eta_min: 1e-5
