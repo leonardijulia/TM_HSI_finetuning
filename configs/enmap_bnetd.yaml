@@ -39,7 +39,7 @@ data:
   class_path: src.datamodules.enmap_bnetd.EnMAPBNETDDataModule
   init_args:
     batch_size: 16
-    num_workers: 8
+    num_workers: 2
     patch_size: 224
     band_selection: "srf_grouping"
 
@@ -68,6 +68,7 @@ model:
 
       head_dropout: 0.21
       num_classes: 11
+      
     loss: ce
     ignore_index: -100
     freeze_backbone: false
@@ -84,5 +85,4 @@ lr_scheduler:
   class_path: CosineAnnealingLR
   init_args:
     T_max: 100
-    eta_min: 1e-5
     eta_min: 1e-5

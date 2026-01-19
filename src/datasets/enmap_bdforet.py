@@ -1,7 +1,9 @@
 import os
-from typing import Callable, Optional, List
+from typing import Callable, Optional, List, Union
+from pathlib import Path
 import torch
 from torch import Tensor
+import numpy as np
 import rasterio
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
@@ -18,6 +20,7 @@ class EnMAPBDForetDataset(NonGeoDataset):
     """
 
     valid_splits = ["train", "val", "test"]
+    valid_band_selection = ["naive", "srf_grouping"]
 
     # Relative directories (with respect to the root)
     image_root = "enmap"   # ENMAP images
@@ -35,6 +38,9 @@ class EnMAPBDForetDataset(NonGeoDataset):
         classes: Optional[List[int]] = [0, 1, 2, 3, 4, 5, 7, 9, 10, 11, 12, 14, 16],
         transforms: Optional[Callable[[dict[str, Tensor]], dict[str, Tensor]]] = None,
         num_bands: int = 12,
+        band_selection: str = "srf_grouping",
+        indices: Optional[list[int]] = None,
+        srf_weight_matrix: Union[str, Path] = None,
         raw_mask: bool = False,
     ) -> None:
         """Initialize the EnMAP-BDForet dataset.
@@ -52,6 +58,7 @@ class EnMAPBDForetDataset(NonGeoDataset):
             ValueError: If split is invalid, classes is None, 0 not in classes,
                 or split file is not found
         """
+        super().__init__()
         if split not in self.valid_splits:
             raise ValueError(f"Split '{split}' not one of {self.valid_splits}.")
         if classes is None:
@@ -60,6 +67,18 @@ class EnMAPBDForetDataset(NonGeoDataset):
             raise ValueError("The provided classes must include the background code 0.")
         
         self.split = split
+        
+        assert (
+            band_selection in self.valid_band_selection
+        ), f"Only supports one of {self.valid_band_selection}, but found {band_selection}"
+        
+        if band_selection == "srf_grouping":
+            if srf_weight_matrix == None:
+                raise ValueError("SRF grouping strategy requires the srf weight matrix!")                
+            self.srf_weight_matrix = np.load(srf_weight_matrix).astype(np.float32)
+        
+        self.band_selection = band_selection
+        self.indices = indices if indices is not None else self.s2l2a_indices
         self.root = root
         self.transforms = transforms
         self.raw_mask = raw_mask
@@ -103,37 +122,6 @@ class EnMAPBDForetDataset(NonGeoDataset):
         ]
         return sample_collection
     
-    def calculate_class_weights(self) -> Tensor:
-        """
-        Iterates over the dataset to calculate class weights based on the 
-        remapped/ordinal labels. Ignores the ignore_index.
-        """
-        import numpy as np
-        from tqdm import tqdm
-        
-        # We want weights for indices [0, 1, ... len(foreground_classes)-1]
-        num_classes = len(self.foreground_classes) + 1
-        counts = np.zeros(num_classes, dtype=np.int64)
-                
-        for _, mask_path in tqdm(self.sample_collection):
-            mask_tensor = self._load_mask(mask_path) 
-            mask = mask_tensor.numpy()            
-           
-            if mask.size > 0:
-                # bincount is fast. minlength ensures we see 0 for missing classes
-                sample_counts = np.bincount(mask.flatten(), minlength=num_classes)
-                
-                # Safety check: bincount might return more bins if data is dirty
-                counts += sample_counts[:num_classes]
-                
-        total_valid_pixels = counts.sum()
-        
-        # Add epsilon to prevent div by zero
-        weights = np.sqrt(total_valid_pixels / (num_classes * (counts + 1e-6)))
-        
-        # Convert to Tensor float
-        return torch.from_numpy(weights).float()
-    
     def __getitem__(self, index: int) -> dict[str, Tensor]:
         """Return a sample given its index."""
         img_path, mask_path = self.sample_collection[index]
@@ -152,8 +140,21 @@ class EnMAPBDForetDataset(NonGeoDataset):
     def _load_image(self, path: str) -> Tensor:
         """Load the ENMAP image using rasterio."""
         with rasterio.open(path) as src:
-            image = torch.from_numpy(src.read(self.s2l2a_indices)).float()  # shape: (bands, H, W)
-            
+            if self.band_selection == "naive":
+                image = src.read(self.indices)
+                image = torch.from_numpy(image).float()
+                
+            elif self.band_selection == "srf_grouping":
+                image = src.read() # (C, H, W)
+                c, h, w = image.shape
+                assert c == self.srf_weight_matrix.shape[0], f"Mismatch! Image has {c} bands, but weighs have {self.srf_weight_matrix.shape[0]}"
+                    
+                # (C, H, W) -> (C, H*W) -> Transpose -> (H*W, C)
+                flattened = image.reshape(c, -1).T
+                grouped= np.dot(flattened, self.srf_weight_matrix)
+                grouped = grouped.reshape(h, w, -1).transpose(2, 0, 1)
+                image = torch.from_numpy(grouped).float()
+                     
         image[image < 0] = 0.0
         image =  image / 10000.0
         return image.float()

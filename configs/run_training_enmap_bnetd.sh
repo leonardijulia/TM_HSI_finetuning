@@ -12,7 +12,7 @@
 #SBATCH --ntasks-per-node=1
 
 module load python/3.11.7--gcc--10.2.0
-source /leonardo/home/userexternal/jleonard/experiments/TM/bin/activate
+source /leonardo/home/userexternal/jleonard/experiments/JL_TT/bin/activate
 
 cd /leonardo/home/userexternal/jleonard/experiments/ || exit 1
 

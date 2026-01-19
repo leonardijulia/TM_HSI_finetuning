@@ -10,8 +10,8 @@ trainer:
     class_path: lightning.pytorch.loggers.MLFlowLogger
     init_args:
       experiment_name: enmap_bdforet
-      tracking_uri: file:/leonardo/home/userexternal/jleonard/experiments/outputs/enmap_bdforet/mlruns
-      run_name: '{now:%Y-%m-%d_%H-%M-%S}'
+      tracking_uri: file:/leonardo/home/userexternal/jleonard/experiments/outputs/mlruns
+      run_name: 160126_srf_grouping_run
 
   callbacks:
     - class_path: RichProgressBar
@@ -25,7 +25,7 @@ trainer:
         monitor: val/loss
         mode: min
         save_last: true
-        save_top_k: 3
+        save_top_k: 1
     - class_path: EarlyStopping
       init_args:
         monitor: val/loss
@@ -39,7 +39,7 @@ data:
   class_path: src.datamodules.enmap_bdforet.EnMAPBDForetDataModule
   init_args:
     batch_size: 16
-    num_workers: 8
+    num_workers: 2
     patch_size: 224
 
 model:
@@ -70,11 +70,12 @@ model:
       
     loss: ce
     ignore_index: -100
+    class_weights: [1.1652, 0.521, 0.9706, 1.1997, 0.5725, 2.221, 1.1205, 1.1452, 0.5706, 0.851, 
+                    1.9292, 0.5962, 0.1374] # inverse sqrt of frequencies
     freeze_backbone: false
     freeze_decoder: false
     path_to_record_metrics: /leonardo/home/userexternal/jleonard/experiments/outputs/enmap_bdforet/
-    class_names: ["Background", "Chesnut", "Deciduous oaks", "Evergreen oaks", "Beech", "Robina", "Douglas-fir", 
-                  "Hooked/Cembro pine", "Other pine", "Aleppo pine", "Corsican/Black pine", "Scots pine", "Fir/Spruce"]
+    class_names: ["Chesnut", "Deciduous oaks", "Evergreen oaks", "Beech", "Robina", "Douglas-fir", "Hooked/Cembro pine", "Other pine", "Aleppo pine", "Corsican/Black pine", "Scots pine", "Fir/Spruce", "Background"]
 optimizer:
   class_path: torch.optim.AdamW #weight decay?
   init_args:
