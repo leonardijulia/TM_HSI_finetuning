@@ -1,16 +1,13 @@
 """
 Hyperview1 DataModule for patch-wise multivariate regression.
 """
-
 from typing import Sequence, Optional
 from pathlib import Path
-
 import numpy as np
 import torch
-from torch.utils.data import Subset, random_split
+from torch.utils.data import random_split
 import albumentations as A
 from torchgeo.datamodules import NonGeoDataModule
-
 from src.datasets.hyperview_1 import Hyperview1NonGeo
 
 class Hyperview1NonGeoDataModule(NonGeoDataModule):
@@ -24,6 +21,8 @@ class Hyperview1NonGeoDataModule(NonGeoDataModule):
         stats_path: str = "/leonardo/home/userexternal/jleonard/experiments/data/statistics/hyperview_1",
         resize_size: int = 224,
         bands: str = "s2l2a",
+        band_selection: str = "naive",
+        srf_weight_file: Optional[str] = "SRF_S2L2A_hyperview_1_W.npy",
         target_mean: Optional[Sequence[float]] = None,
         target_std: Optional[Sequence[float]] = None,
     ) -> None:
@@ -39,14 +38,17 @@ class Hyperview1NonGeoDataModule(NonGeoDataModule):
             target_std: Optional precomputed std of targets.
         """
         # Pass dataset class and loader params to parent
-        super().__init__(dataset_class=Hyperview1NonGeo, batch_size=batch_size, num_workers=num_workers)
 
         self.data_root = Path(data_root)
         self.bands = bands
+        self.band_selection = band_selection
         self.target_mean = target_mean
         self.target_std = target_std
         self.stats_path = Path(stats_path)
+        self.srf_weight_path = Path(stats_path, srf_weight_file)
 
+        super().__init__(dataset_class=Hyperview1NonGeo, batch_size=batch_size, num_workers=num_workers)
+        
         # Albumentations CenterCrop transform
         self.train_transform = A.Compose([
             A.D4(),
@@ -66,6 +68,8 @@ class Hyperview1NonGeoDataModule(NonGeoDataModule):
             data_root=self.data_root,
             split="train",
             bands=self.bands,
+            band_selection=self.band_selection,
+            srf_weight_matrix=self.srf_weight_path,
             transform=None,
             stats_path=self.stats_path,
             target_mean=None,
@@ -90,6 +94,8 @@ class Hyperview1NonGeoDataModule(NonGeoDataModule):
                 bands=self.bands,
                 transform=self.train_transform,
                 stats_path=self.stats_path,
+                band_selection=self.band_selection,
+                srf_weight_matrix=self.srf_weight_path,
                 target_mean=self.target_mean,
                 target_std=self.target_std,
                 subset_idx=train_subset.indices
@@ -101,6 +107,8 @@ class Hyperview1NonGeoDataModule(NonGeoDataModule):
                 bands=self.bands,
                 transform=self.val_transform,
                 stats_path=self.stats_path,
+                band_selection=self.band_selection,
+                srf_weight_matrix=self.srf_weight_path,
                 target_mean=self.target_mean,
                 target_std=self.target_std,
                 subset_idx=val_subset.indices
@@ -114,6 +122,8 @@ class Hyperview1NonGeoDataModule(NonGeoDataModule):
                 bands=self.bands,
                 transform=self.val_transform,
                 stats_path=self.stats_path,
+                band_selection=self.band_selection,
+                srf_weight_matrix=self.srf_weight_path,
                 target_mean=self.target_mean,
                 target_std=self.target_std,
                 subset_idx=val_subset.indices
@@ -124,6 +134,8 @@ class Hyperview1NonGeoDataModule(NonGeoDataModule):
             self.predict_dataset = self.dataset_class(
                 data_root=self.data_root,
                 split="test",
+                band_selection=self.band_selection,
+                srf_weight_matrix=self.srf_weight_path,
                 bands=self.bands,
                 transform=self.val_transform,
             )

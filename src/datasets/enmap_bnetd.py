@@ -51,6 +51,9 @@ class EnMAPBNETDDataset(NonGeoDataset):
             classes: List of forest class codes (must include 0 for background)
             transforms: Optional transforms to apply to samples
             num_bands: Number of spectral bands (default: 202 for EnMAP)
+            band_selection (str): Method of mapping the hyperspectral bands into a lower space ("naive" or "srf_grouping).
+            indices (list[int], optional): which indices to select for naive band selection.
+            srf_weight_matrix (str | Path): Path to the weight matrix used in srf grouping method.
             raw_mask: If True, don't remap mask classes
             
         Raises:

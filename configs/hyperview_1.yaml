@@ -10,6 +10,7 @@ trainer:
     init_args:
       experiment_name: hyperview_1
       tracking_uri: file:/leonardo/home/userexternal/jleonard/experiments/outputs/mlruns
+      run_name: 200126_srf_grouping_run
       
   callbacks:
     - class_path: RichProgressBar
@@ -20,8 +21,8 @@ trainer:
         filename: '{epoch:02d}'
         monitor: val/loss
         mode: min
-        save_last: true
-        save_top_k: 3
+        save_last: false
+        save_top_k: 1
     - class_path: EarlyStopping
       init_args:
         monitor: val/loss
@@ -32,12 +33,15 @@ trainer:
   max_epochs: 400
   log_every_n_steps: 5
   default_root_dir: /leonardo/home/userexternal/jleonard/experiments/
+
 data: 
   class_path: src.datamodules.hyperview_1.Hyperview1NonGeoDataModule
   init_args:
     batch_size: 32 # following the setup of SpectralEarth
     num_workers: 2
     bands: s2l2a # Picking the indices corresponding to S2L2A
+    band_selection: "srf_grouping"
+    srf_weight_file: "SRF_S2L2A_hyperview_1_W.npy"
     data_root: /leonardo/home/userexternal/jleonard/experiments/data/hyperview_1/
 
 model:
