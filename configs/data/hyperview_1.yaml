@@ -1,0 +1,10 @@
+class_path: src.datamodules.hyperview_1.Hyperview1NonGeoDataModule
+init_args:
+  batch_size: 32
+  num_workers: 2
+  bands: s2l2a_nored 
+  band_selection: srf_grouping 
+  srf_weight_file: SRF_S2L2A_hyperview_1_W.npy
+  data_root: ${data_root}/hyperview_1
+  stats_path: ${data_root}/statistics/hyperview_1
+  resize_size: 224

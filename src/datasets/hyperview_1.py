@@ -16,17 +16,29 @@ from src.transforms.normalize import NormalizeMeanStd
 class Hyperview1NonGeo(NonGeoDataset):
     """A custom dataset for the Hyperview-1 challenge dataset for patch wise regression.
     https://platform.ai4eo.eu/seeing-beyond-the-visible-permanent/data
+    
+     Expects a directory layout:
+      root/
+        train/                 
+        test/
+        train_gt.csv        # labels + image ids   
+
+    Band handling:
+      - band_selection="naive": select 12 Sentinel-2-like bands via indices.
+      - band_selection="srf_grouping": load all bands and project to 12 via SRF weight matrix.
+      - rgb_indices define visualization channels (assumes 12-band S2L2A order).
+
     """
    
     BAND_SETS = {
         "hls": { "indices": [7, 32, 61, 117] },
         "s2l2a": { "indices": [0, 9, 30, 63, 76, 87, 101, 116, 126, 149, 149, 149]},
-        "s2l2a_nored": { "indices": [0, 9, 30, 63, 76, 87, 101, 116, 126, 149]},
+        "s2l2a_nored": { "indices": [9, 30, 63, 76, 87, 101, 116, 126, 149]},
         "rgb": {"indices": [61, 32, 7]},
     }
     
     RGB_VIS = {"s2l2a": [3, 2, 1],
-                   "hls": [2, 1, 0]}
+               "hls": [2, 1, 0]}
 
     SOIL_PARAMS = ["P", "K", "Mg", "pH"]
     VALID_SPLITS = ["train", "val", "test"]
@@ -194,7 +206,8 @@ class Hyperview1NonGeo(NonGeoDataset):
             #data_tensor = torch.from_numpy(data_selected).float()
             
         elif self.band_selection == "srf_grouping":
-            #ASSERT C?
+            c, h, w = raw_data.shape
+            assert c == self.srf_weights.shape[0], f"Mismatch! Image has {c} bands, but weights have {self.srf_weights.shape[0]}"
             if isinstance(raw_data, np.ma.MaskedArray):
                 raw_data = raw_data.filled(0)
             

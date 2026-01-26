@@ -17,7 +17,6 @@ tm
 __pycache__/
 experiment_logs
 mlflow.db
-hyperview_1.yaml
 config.yaml
 config_deploy.yaml
 .gitignore
