@@ -1,0 +1,11 @@
+class_path: src.datamodules.hyperview_1.Hyperview2NonGeoDataModule
+init_args:
+  batch_size: 64 
+  num_workers: 2
+  bands: s2l2a # Picking the indices corresponding to S2L2A
+  sensor: hsi_air
+  band_selection: srf_grouping 
+  srf_weight_file: SRF_S2L2A_hyperview_1_W.npy 
+  data_root: ${data_root}/hyperview_2
+  stats_path: ${data_root}/statistics/hyperview_2
+  resize_size: 224

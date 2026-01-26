@@ -1,0 +1,32 @@
+accelerator: auto
+strategy: auto
+devices: auto
+num_nodes: 1
+precision: 16-mixed
+logger:
+  class_path: lightning.pytorch.loggers.MLFlowLogger
+  init_args:
+    experiment_name: ${hydra:job.name}
+    tracking_uri: file:${outputs_root}/mlruns
+
+callbacks:
+  - class_path: RichProgressBar
+  - class_path: LearningRateMonitor
+    init_args:
+        logging_interval: epoch
+  - class_path: ModelCheckpoint
+    init_args:
+      dirpath: ${hydra:runtime.output_dir}/checkpoints
+      filename: '{epoch:02d}'
+      monitor: val/loss
+      mode: min
+      save_top_k: 1
+      save_last: false
+  - class_path: EarlyStopping
+    init_args:
+      monitor: val/loss
+      mode: min
+      patience: 20
+
+log_every_n_steps: 5
+default_root_dir: ${project_root}

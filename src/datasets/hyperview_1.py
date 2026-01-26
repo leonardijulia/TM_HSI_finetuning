@@ -85,8 +85,8 @@ class Hyperview1NonGeo(NonGeoDataset):
         
         stats_path = Path(stats_path)
         try:
-            raw_mean = torch.tensor(np.load(stats_path / "mu.npy"))
-            raw_std = torch.tensor(np.load(stats_path / "sigma.npy"))
+            raw_mean = torch.tensor(np.load(stats_path / "mu.npy")).float()
+            raw_std = torch.tensor(np.load(stats_path / "sigma.npy")).float()
         except FileNotFoundError:
             raise MisconfigurationException(f"Missing mu.npy or sigma.npy in {stats_path}")
 
@@ -109,13 +109,15 @@ class Hyperview1NonGeo(NonGeoDataset):
             self.std = torch.sqrt(proj_var)
 
         self.normalizer = NormalizeMeanStd(mean=self.mean, std=self.std)
-      
-        self.target_mean = np.array(target_mean, dtype=np.float32) if target_mean else None
-        self.target_std = np.array(target_std, dtype=np.float32) if target_std else None
+
+        if target_mean is not None:
+            self.target_mean = np.array(target_mean, dtype=np.float32) 
+        if target_std is not None:
+            self.target_std = np.array(target_std, dtype=np.float32)
 
         self.samples = self._prepare_samples(gt_file, subset_idx)
         
-    def _prepare_samples(self, gt_file: str, subset_idx: Optional[List[int]]) -> List[Dict]:
+    def _prepare_samples(self, gt_file: str, subset_idx: Optional[list[int]]):
         """Parses the CSV and prepares the list of samples."""
         samples = []
         

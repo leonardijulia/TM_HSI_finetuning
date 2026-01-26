@@ -1,0 +1,27 @@
+# lightning.pytorch==2.1.1
+seed_everything: 42
+
+defaults:
+  - /trainer: default
+  - /model: segmentation_task
+  - /data: enmap_bnetd
+  - /optimizer: adamw_standard
+  - /scheduler: cosine_annealing
+  - /paths: default 
+
+trainer:
+  max_epochs: 100
+
+model:
+  init_args:
+    model_args:
+      backbone_in_chans: 12
+      backbone_bands:
+        S2L2A: ["COASTAL_AEROSOL", "BLUE", "GREEN", "RED", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3", 
+                "NIR_BROAD", "NIR_NARROW", "WATER_VAPOR", "SWIR_1", "SWIR_2",]
+      num_classes: 11
+
+    ignore_index: -100
+    path_to_record_metrics: ${outputs_root}/enmap_bnetd/
+    class_names: ["Dense forest", "Light forest", "Forest Gallery", "Forest plantation", "Cocoa plantation", "Rubber plantation", 
+                "Cashew plantation", "Agricultural area", "Tree savannah", "Human habitat", "Background"]

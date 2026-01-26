@@ -1,0 +1,5 @@
+project_root: /leonardo/home/userexternal/jleonard/experiments
+data_root: ${project_root}/data
+ckpt_root: ${project_root}/src/ckpt
+outputs_root: ${project_root}/outputs
+backbone_ckpt_path: ${ckpt_root}/TerraMind_v1_base.pt

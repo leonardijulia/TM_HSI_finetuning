@@ -1,0 +1,8 @@
+class_path: ReduceLROnPlateau
+init_args:
+  mode: min
+  monitor: val/loss
+  factor: 0.5
+  patience: 10
+  verbose: true
+  min_lr: 1.0e-7

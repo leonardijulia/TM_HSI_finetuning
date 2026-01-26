@@ -1,0 +1,6 @@
+class_path: src.datamodules.enmap_bnetd.EnMAPBNETDDataModule
+init_args:
+  batch_size: 16
+  num_workers: 2
+  patch_size: 224
+  band_selection: srf_grouping ### THIS DYNAMIC!!!!

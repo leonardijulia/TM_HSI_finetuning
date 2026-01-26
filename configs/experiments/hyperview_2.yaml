@@ -1,0 +1,36 @@
+seed_everything: 42
+
+defaults:
+  - /trainer: default
+  - /model: regression_task
+  - /data: hyperview_1
+  - /optimizer: adamw_standard
+  - /scheduler: reduce_on_plateau
+  - /paths: default
+
+trainer:
+  callbacks:
+    - class_path: EarlyStopping
+      init_args:
+        min_delta: 0.001
+  max_epochs: 400
+
+model:
+  init_args:
+    model_args:
+      backbone_in_chans: 13
+      backbone_bands:
+        S2L2A: ["COASTAL_AEROSOL", "BLUE", "GREEN", "RED", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3", "NIR_BROAD", 
+                "NIR_NARROW", "WATER_VAPOR", "SWIR_1", "SWIR_2", "MASK"]
+      head_num_outputs: 6
+      head_dropout: 0.237175
+      head_dim_list: [256]
+      head_linear_after_pool: true
+    num_outputs: 6
+    path_to_record_metrics: ${outputs_root}/hyperview_2/ 
+    var_names: ['Fe', 'Zn', 'B', 'Cu', 'S', 'Mn']
+
+optimizer:
+  init_args:
+    lr: 5.4e-5
+    weight_decay: 0.01

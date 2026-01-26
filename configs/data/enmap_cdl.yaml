@@ -1,0 +1,8 @@
+class_path: src.datamodules.enmap_cdl_nlcd.EnMAPCDLNLCDDataModule
+init_args:
+  batch_size: 8
+  num_workers: 2
+  patch_size: 224
+  stats_path: ${data_root}/statistics/enmap/
+  data_root: ${data_root}/enmap_cdl/
+  band_selection: srf_grouping ######## THIS DYNAMIC

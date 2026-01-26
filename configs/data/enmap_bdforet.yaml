@@ -1,0 +1,6 @@
+class_path: src.datamodules.enmap_bdforet.EnMAPBDForetDataModule
+init_args:
+  batch_size: 16
+  num_workers: 2
+  patch_size: 224
+  stats_path: ${data_root}/statistics/enmap_bdforet

@@ -1,0 +1,29 @@
+# lightning.pytorch==2.1.1
+seed_everything: 42
+
+defaults:
+  - /trainer: default
+  - /model: segmentation_task
+  - /data: enmap_bdforet
+  - /optimizer: adamw_standard
+  - /scheduler: cosine_annealing
+  - /paths: default
+
+trainer:
+  max_epochs: 100
+
+model:
+  init_args:     
+    model_args:
+      backbone_in_chans: 12
+      backbone_bands:
+        S2L2A: ["COASTAL_AEROSOL", "BLUE", "GREEN", "RED", "RED_EDGE_1", "RED_EDGE_2", 
+                "RED_EDGE_3", "NIR_BROAD", "NIR_NARROW", "WATER_VAPOR", "SWIR_1", "SWIR_2",]
+      num_classes: 13
+
+    ignore_index: -100
+    path_to_record_metrics: ${outputs_root}/enmap_bdforet/ ##?? needed/maybe automate in yaml
+    class_names: ["Chesnut", "Deciduous oaks", "Evergreen oaks", "Beech", "Robina", "Douglas-fir", "Hooked or Cembro pine", 
+                "Other pine", "Aleppo pine", "Corsican/Black pine", "Scots pine", "Fir or Spruce", "Background"]  
+    class_weights: [1.1652, 0.521, 0.9706, 1.1997, 0.5725, 2.221, 1.1205, 1.1452, 0.5706, 0.851, 
+                    1.9292, 0.5962, 0.1374] # inverse sqrt of frequencie
