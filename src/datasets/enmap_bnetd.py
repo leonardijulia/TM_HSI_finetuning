@@ -16,25 +16,42 @@ class EnMAPBNETDDataset(NonGeoDataset):
     This dataset pairs EnMAP hyperspectral imagery with a land cover map from
     the BNETD (Bureau National d'Études Techniques et de Développement) database
     over Ivory Coast. 
+
+    Expects a directory layout:
+      root/
+        enmap/               # hyperspectral images (C,H,W)
+        bnetd/                 # label rasters (1,H,W) with CDL class IDs
+      splits/
+        enmap_bnetd/
+          train.txt
+          val.txt
+          test.txt    
+
+    Band handling:
+      - band_selection="naive": select 12 Sentinel-2-like bands via indices.
+      - band_selection="srf_grouping": load all bands and project to 12 via SRF weight matrix.
+      - rgb_indices define visualization channels (assumes 12-band S2L2A order).
+
+    Class remapping:
+      - `classes` must include background 0.
+      - Background is moved to the end to become the ignore class.
+      - Masks are mapped to ordinal labels via `ordinal_map`; set raw_mask=True to skip remap.
     """
 
-    valid_splits = ["train", "val", "test"]
-    valid_band_selection = ["naive", "srf_grouping"]
-
+    VALID_SPLITS = ["train", "val", "test"]
+    VALID_BAND_SELECTION = ["naive", "srf_grouping"]
+    S2L2A_INDICES = [6, 16, 30, 48, 54, 59, 65, 71, 75, 90, 131, 172]
+    RGB_INDICES = [3, 2, 1]
     # Relative directories (with respect to the root)
-    image_root = "enmap"         # e.g., directory containing images
-    mask_root = "bnetd"    # e.g., directory containing masks
-    split_path = os.path.join("data", "splits", "enmap_bnetd", "{}.txt")
+    IMAGE_ROOT = "enmap"         # e.g., directory containing images
+    MASK_ROOT = "bnetd"    # e.g., directory containing masks
     
-    s2l2a_indices = [6, 16, 30, 48, 54, 59, 65, 71, 75, 90, 131, 172]
-    rgb_indices = {"enmap": [3, 2, 1]}
-
     def __init__(
         self,
         root: str = "./data/enmap_bnetd",
         sensor: str = "enmap",
         split: str = "train",
-        classes: Optional[List[int]] = [0, 1, 2, 3, 6, 9, 10, 13, 15, 16, 21],
+        classes: Optional[List[int]] = None,
         transforms: Optional[Callable[[dict[str, Tensor]], dict[str, Tensor]]] = None,
         num_bands: int = 12,
         band_selection: str = "naive",
@@ -50,8 +67,8 @@ class EnMAPBNETDDataset(NonGeoDataset):
             split: Dataset split ("train", "val", or "test")
             classes: List of forest class codes (must include 0 for background)
             transforms: Optional transforms to apply to samples
-            num_bands: Number of spectral bands (default: 202 for EnMAP)
-            band_selection (str): Method of mapping the hyperspectral bands into a lower space ("naive" or "srf_grouping).
+            num_bands: Number of spectral bands.
+            band_selection (str): Method of mapping the hyperspectral bands into a lower space ("naive" or "srf_grouping").
             indices (list[int], optional): which indices to select for naive band selection.
             srf_weight_matrix (str | Path): Path to the weight matrix used in srf grouping method.
             raw_mask: If True, don't remap mask classes
@@ -61,8 +78,8 @@ class EnMAPBNETDDataset(NonGeoDataset):
                 or split file is not found
         """
         super().__init__()
-        if split not in self.valid_splits:
-            raise ValueError(f"Split '{split}' not one of {self.valid_splits}.")
+        if split not in self.VALID_SPLITS:
+            raise ValueError(f"Split '{split}' not one of {self.VALID_SPLITS}.")
         if classes is None:
             raise ValueError("Please provide a list of classes. All other classes will be mapped to background.")
         if 0 not in classes:
@@ -71,17 +88,19 @@ class EnMAPBNETDDataset(NonGeoDataset):
         self.split = split
         
         assert (
-            band_selection in self.valid_band_selection
-        ), f"Only supports one of {self.valid_band_selection}, but found {band_selection}"
+            band_selection in self.VALID_BAND_SELECTION
+        ), f"Only supports one of {self.VALID_BAND_SELECTION}, but found {band_selection}"
         
         if band_selection == "srf_grouping":
             if srf_weight_matrix == None:
-                raise ValueError("SRF grouping strategy requires the srf weight matrix!")                
+                raise ValueError("SRF grouping strategy requires the srf weight matrix!")  
+            if not Path(srf_weight_matrix).exists():
+                raise ValueError("SRF grouping matrix not found!")           
             self.srf_weight_matrix = np.load(srf_weight_matrix).astype(np.float32)
             
         self.band_selection = band_selection
-        self.indices = indices if indices is not None else self.s2l2a_indices
-        self.root = root
+        self.indices = indices if indices is not None else self.S2L2A_INDICES
+        self.root = Path(root)
         self.transforms = transforms
         self.raw_mask = raw_mask
         self.sensor = sensor
@@ -105,7 +124,7 @@ class EnMAPBNETDDataset(NonGeoDataset):
             self.ordinal_cmap[i] = torch.tensor([int(255 * c) for c in color])
         
         # Read split file containing sample identifiers
-        self.split_file = self.split_path.format(self.split)
+        self.split_file = self.root.parent / "splits" / "enmap_bnetd" / f"{self.split}.txt"
         if os.path.exists(self.split_file):
             self.sample_collection = self.read_split_file()
         else:
@@ -117,8 +136,8 @@ class EnMAPBNETDDataset(NonGeoDataset):
             sample_ids = [x.strip() for x in f.readlines()]
         sample_collection = [
             (
-                os.path.join(self.root, self.image_root, sample_id),
-                os.path.join(self.root, self.mask_root, sample_id)
+                self.root / self.IMAGE_ROOT / sample_id,
+                self.root / self.MASK_ROOT / sample_id
             )
             for sample_id in sample_ids
         ]
@@ -149,7 +168,7 @@ class EnMAPBNETDDataset(NonGeoDataset):
             elif self.band_selection == "srf_grouping":
                 image = src.read() # (C, H, W)
                 c, h, w = image.shape
-                assert c == self.srf_weight_matrix.shape[0], f"Mismatch! Image has {c} bands, but weighs have {self.srf_weight_matrix.shape[0]}"
+                assert c == self.srf_weight_matrix.shape[0], f"Mismatch! Image has {c} bands, but weights have {self.srf_weight_matrix.shape[0]}"
                     
                 # (C, H, W) -> (C, H*W) -> Transpose -> (H*W, C)
                 flattened = image.reshape(c, -1).T
@@ -187,7 +206,7 @@ class EnMAPBNETDDataset(NonGeoDataset):
     ) -> plt.Figure:
         """Plot the sample image and mask."""
         ncols = 2
-        image = sample["image"][self.rgb_indices[self.sensor]].numpy()
+        image = sample["image"][self.RGB_INDICES].numpy()
         image = image.transpose(1, 2, 0)
         image = (image - image.min()) / (image.max() - image.min())
 

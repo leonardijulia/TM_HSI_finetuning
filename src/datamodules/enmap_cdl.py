@@ -8,11 +8,10 @@ from torchgeo.datamodules.geo import NonGeoDataModule
 from torchgeo.samplers.utils import _to_tuple
 from torchgeo.datamodules.utils import MisconfigurationException
 from torch import Tensor
-from src.datasets.enmap_cdl_nlcd import EnMAPCDLNLCDDataset
+from src.datasets.enmap_cdl import EnMAPCDLDataset
 from src.transforms.normalize import NormalizeMeanStd
 
-class EnMAPCDLNLCDDataModule(NonGeoDataModule):
-    """LightningDataModule for the EnMAP-CDL/NLCD dataset."""
+class EnMAPCDLDataModule(NonGeoDataModule):
     
     def __init__(
         self,
@@ -25,7 +24,7 @@ class EnMAPCDLNLCDDataModule(NonGeoDataModule):
         srf_weight_file: Optional[str] = "SRF_S2L2A_EnMAP_W.npy",
         **kwargs: Any,
     ) -> None:
-        """Initialize an EnMAP-CDL/NLCD datamodule.
+        """Initialize an EnMAP-CDL datamodule.
 
         Args:
             batch_size: Size of each mini-batch for training, validation, and testing.
@@ -51,11 +50,11 @@ class EnMAPCDLNLCDDataModule(NonGeoDataModule):
         kwargs["indices"] = self.indices
         kwargs["srf_weight_matrix"] = self.srf_weight_path
         
-        super().__init__(EnMAPCDLNLCDDataset, batch_size, num_workers, **kwargs)
+        super().__init__(EnMAPCDLDataset, batch_size, num_workers, **kwargs)
         
         try:
-            raw_mean = torch.tensor(np.load(f"{stats_path}/mu.npy"))
-            raw_std = torch.tensor(np.load(f"{stats_path}/sigma.npy"))
+            raw_mean = torch.tensor(np.load(f"{stats_path}/mu.npy")).float()
+            raw_std = torch.tensor(np.load(f"{stats_path}/sigma.npy")).float()
         except FileNotFoundError:
             raise MisconfigurationException("Missing statistics! Ensure mu.npy and sigma.npy are available.")
         

@@ -34,6 +34,9 @@ class EnMAPBNETDDataModule(NonGeoDataModule):
             patch_size: Size of each patch (int or tuple of int).
             num_workers: Number of workers for data loading.
             stats_path: Path to the directory containing normalization statistics (mu.npy and sigma.npy).
+            band_selection: Strategy used to sample bands of the data - either "naive" or "srf_grouping".
+            indices: Optional; if "naive" sampling strategy they're used to select a subset of the hyperspectral datacube.
+            srf_weight_file: Optional[str], name of the weight matrix used with the "srf_grouping" sampling strategy.
             **kwargs: Additional keyword arguments passed to EnMAPEurocropsDataset.
                      (e.g. you must pass a list for `classes`.)
         """
@@ -49,8 +52,8 @@ class EnMAPBNETDDataModule(NonGeoDataModule):
         super().__init__(EnMAPBNETDDataset, batch_size, num_workers, **kwargs)
         
         try:
-            raw_mean = torch.tensor(np.load(f"{stats_path}/mu.npy"))
-            raw_std = torch.tensor(np.load(f"{stats_path}/sigma.npy"))
+            raw_mean = torch.tensor(np.load(f"{stats_path}/mu.npy")).float()
+            raw_std = torch.tensor(np.load(f"{stats_path}/sigma.npy")).float()
         except FileNotFoundError:
             raise MisconfigurationException("Missing statistics! Ensure mu.npy and sigma.npy are available.")
 

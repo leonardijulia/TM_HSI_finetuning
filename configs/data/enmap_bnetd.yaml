@@ -3,4 +3,7 @@ init_args:
   batch_size: 16
   num_workers: 2
   patch_size: 224
-  band_selection: srf_grouping ### THIS DYNAMIC!!!!
+  band_selection: srf_grouping 
+  stats_path: ${data_root}/statistics/enmap
+  root: ${data_root}/enmap_bnetd
+  classes: [0, 1, 2, 3, 6, 9, 10, 13, 15, 16, 21]

@@ -6,8 +6,8 @@ import matplotlib.colors as mcolors
 from matplotlib.patches import Rectangle
 from lightning.pytorch import Trainer
 from terratorch.tasks import SemanticSegmentationTask
-from src.datamodules.enmap_cdl_nlcd import EnMAPCDLNLCDDataModule
-from src.datasets.enmap_cdl_nlcd import EnMAPCDLNLCDDataset
+from src.datamodules.enmap_cdl import EnMAPCDLNLCDDataModule
+from src.datasets.enmap_cdl import EnMAPCDLNLCDDataset
 
 def plot_sample(image, label, num_classes, save_path, prediction=None, suptitle=None, class_names=None, show_axes=False):
     num_images = 4 if prediction is not None else 3

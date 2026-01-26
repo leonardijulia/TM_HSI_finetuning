@@ -6,8 +6,6 @@ from typing import Callable, Optional, Union
 
 from torchgeo.datasets.cdl import CDL
 from torchgeo.datasets.geo import NonGeoDataset
-from torchgeo.datasets.nlcd import NLCD
-
 import torch
 from torch import Tensor
 
@@ -16,105 +14,107 @@ import rasterio
 import matplotlib.pyplot as plt
 import random
 
-class EnMAPCDLNLCDDataset(NonGeoDataset):
-    """EnMAP-CDL/NLCD dataset for crop type/land cover classification.
-    
-    This dataset handles hyperspectral EnMAP imagery paired with either 
-    Cropland Data Layer (CDL) or National Land Cover Database (NLCD) labels.
-    It supports train/val/test splits and class mapping for land cover analysis.
+class EnMAPCDLDataset(NonGeoDataset):
     """
+    EnMAP hyperspectral + CDL labels for semantic segmentation.
 
-    valid_products = ["cdl", "nlcd"]
-    valid_splits = ["train", "val", "test"]
-    valid_band_selection = ["naive", "srf_grouping"]
+    Expects a directory layout:
+      root/
+        enmap/               # hyperspectral images (C,H,W)
+        cdl/                 # label rasters (1,H,W) with CDL class IDs
+      splits/
+        enmap_cdl/
+          train.txt
+          val.txt
+          test.txt    
+
+    Band handling:
+      - band_selection="naive": select 12 Sentinel-2-like bands via indices.
+      - band_selection="srf_grouping": load all bands and project to 12 via SRF weight matrix.
+      - rgb_indices define visualization channels (assumes 12-band S2L2A order).
+
+    Class remapping:
+      - `classes` must include background 0.
+      - Background is moved to the end to become the ignore class.
+      - Masks are mapped to ordinal labels via `ordinal_map`; set raw_mask=True to skip remap.
+    """
     
-    image_root = "{}"
-    mask_root = "{}"
-    split_path = os.path.join("data", "splits", "enmap_cdl", "{}.txt")
-   
-    s2l2a_indices = [6, 16, 30, 48, 54, 59, 65, 71, 75, 90, 131, 172]
-    
-    rgb_indices = {
-        "enmap": [3, 2, 1],
-    }
-
-    split_percentages = [0.75, 0.1, 0.15]
-
-    cmaps = {"nlcd": NLCD.cmap, "cdl": CDL.cmap}
+    VALID_SPLITS = ["train", "val", "test"]
+    VALID_BAND_SELECTION = ["naive", "srf_grouping"]
+    IMAGE_ROOT = "enmap"
+    MASK_ROOT = "cdl"
+    S2L2A_INDICES = [6, 16, 30, 48, 54, 59, 65, 71, 75, 90, 131, 172]
+    RGB_INDICES = [3, 2, 1]
 
     def __init__(
         self,
         root: str = "./data/enmap_cdl",
-        sensor: str = "enmap",
-        product: str = "cdl",
         split: str = "train",
-        classes: Optional[list[int]] = [0, 1, 2, 3, 4, 5, 6, 45, 54, 69, 72, 75, 76, 204, 210],
+        classes: Optional[list[int]] = None,
         transforms: Optional[Callable[[dict[str, Tensor]], dict[str, Tensor]]] = None,
         num_bands: int = 12,
         band_selection: str = "naive",
         indices: Optional[list[int]] = None,
         srf_weight_matrix: Union[str, Path] = None,
         raw_mask: bool = False,
-        subset_percent: Optional[float] = None,
-
-    ) -> None:
-        """Initialize the EnMAP-CDL/NLCD dataset.
+     ) -> None:
+        
+        """
+        Initializes the EnMAPCDLDataset.
         
         Args:
-            root: Root directory containing the dataset
-            sensor: Sensor type (currently only 'enmap' supported)
-            product: Label type, either 'cdl' or 'nlcd'
-            split: Dataset split ('train', 'val', or 'test')
-            classes: List of class IDs to include (default: all classes)
-            transforms: Optional transformation function
-            num_bands: Number of spectral bands (default: 202 for EnMAP)
-            band_selection: strategy of loading the HSI cube  ('naive' or 'srf_grouping')
-            srf_weight_matrix: the normalized matrix of weights used for loading grouped bands of the HSI image.
-            raw_mask: If True, return raw mask without class mapping
-            subset_percent: Optional fraction of data to use (for debugging)
+            root: Dataset root containing enmap/, cdl/, and splits/.
+            split: "train" | "val" | "test".
+            classes: Class IDs to keep; others map to background. Must include 0.
+            transforms: Optional sample transforms.
+            num_bands: Expected band count after selection/projection (default 12).
+            band_selection: "naive" or "srf_grouping".
+            indices: Band indices for naive selection; defaults to S2L2A mapping.
+            srf_weight_matrix: Path to SRF weight matrix (required for srf_grouping).
+            raw_mask: If True, return raw CDL IDs; otherwise remap to ordinal.
+
+        Returns:
+            Samples with keys:
+            - "image": float32 tensor (C,H,W)
+            - "mask": long tensor (1,H,W) remapped to ordinal labels
         """
         super().__init__()
-        self.sensor = sensor
+        
         assert (
-            product in self.valid_products
-        ), f"Only supports one of {self.valid_products}, but found {product}."
-        self.product = product
-        assert (
-            split in self.valid_splits
-        ), f"Only supports one of {self.valid_splits}, but found {split}."
+            split in self.VALID_SPLITS
+        ), f"Only supports one of {self.VALID_SPLITS}, but found {split}."
         self.split = split
         
         assert (
-            band_selection in self.valid_band_selection
-        ), f"Only supports one of {self.valid_band_selection}, but found {band_selection}"
+            band_selection in self.VALID_BAND_SELECTION
+        ), f"Only supports one of {self.VALID_BAND_SELECTION}, but found {band_selection}"
         
         if band_selection == "srf_grouping":
             if srf_weight_matrix == None:
                 raise ValueError("SRF grouping strategy requires the srf weight matrix!")                
+            if not Path(srf_weight_matrix).exists():
+                raise ValueError("SRF grouping matrix not found!")  
             self.srf_weight_matrix = np.load(srf_weight_matrix).astype(np.float32)
             
         self.band_selection = band_selection
-        self.indices = indices if indices is not None else self.s2l2a_indices
+        self.indices = indices if indices is not None else self.S2L2A_INDICES
         
-        self.cmap = self.cmaps[product]
+        self.cmap = CDL.cmap
         if classes is None:
             classes = list(self.cmap.keys())
 
         assert 0 in classes, "Classes must include the background class: 0"
 
-        self.root = root
+        self.root = Path(root)
         self.classes = classes
         self.transforms = transforms
         self.ordinal_map = torch.zeros(max(self.cmap.keys()) + 1, dtype=torch.long) + len(self.classes) - 1
         self.ordinal_cmap = torch.zeros((len(self.classes), 4), dtype=torch.uint8)
-        self.img_dir_name = self.image_root.format(self.sensor)
-        self.mask_dir_name = self.mask_root.format(self.product)
         self.num_bands = num_bands
         self.raw_mask = raw_mask
-        self.subset_percent = subset_percent
 
         # Check if split file exists, if not create it
-        self.split_file = self.split_path.format(self.split)
+        self.split_file = self.root.parent / "splits" / "enmap_cdl" / f"{self.split}.txt"
         if os.path.exists(self.split_file):
             self.sample_collection = self.read_split_file()
         else:
@@ -130,53 +130,6 @@ class EnMAPCDLNLCDDataset(NonGeoDataset):
         for v, k in enumerate(self.classes):
             self.ordinal_map[k] = v
             self.ordinal_cmap[v] = torch.tensor(self.cmap[k])
-            
-        if self.subset_percent is not None and self.split in ["train", "val"]:
-            # Load the original train and val split files to get the total counts
-            with open(self.split_path.format(self.sensor, self.product, "train"), "r") as f:
-                train_ids = [line.strip() for line in f.readlines()]
-            with open(self.split_path.format(self.sensor, self.product, "val"), "r") as f:
-                val_ids = [line.strip() for line in f.readlines()]
-
-            total_tv = len(train_ids) + len(val_ids)
-            # Determine the target total number of samples to use from train+val.
-            subset_total = int(total_tv * self.subset_percent)
-
-            # Choose partitioning ratios based on the subset size.
-            # For smaller subsets (< 50%), use 80% train, 20% val.
-            # Otherwise, use 70% train, 30% val.
-            if self.subset_percent < 0.5:
-                target_train = int(subset_total * 0.8)
-            else:
-                target_train = int(subset_total * 0.7)
-            target_val = subset_total - target_train
-
-            # Based on the current split, determine the new sample count.
-            if self.split == "train":
-                new_count = min(len(self.sample_collection), target_train)
-            elif self.split == "val":
-                new_count = min(len(self.sample_collection), target_val)
-
-            # Use a fixed seed for reproducibility.
-            rng = random.Random(42)
-            self.sample_collection = rng.sample(self.sample_collection, new_count)
-            
-
-    def split_train_val_test(self) -> list:
-        """Random Split Train/Val/Test. Not used in the current implementation. The function was used to generate the split files."""
-        np.random.seed(0)
-        sizes = (np.array(self.split_percentages) * len(self.sample_collection)).astype(int)
-        cutoffs = np.cumsum(sizes)[:-1]
-        sample_indices = np.arange(len(self.sample_collection))
-        np.random.shuffle(sample_indices)
-        groups = np.split(sample_indices, cutoffs)
-        split_indices = {"train": groups[0], "val": groups[1], "test": groups[2]}
-
-        train_val_test_images = {"train": [self.sample_collection[idx] for idx in split_indices["train"]],
-                                 "val": [self.sample_collection[idx] for idx in split_indices["val"]],
-                                 "test": [self.sample_collection[idx] for idx in split_indices["test"]]}
-        
-        return train_val_test_images
     
     def read_split_file(self) -> list:
         """Read .txt file containing train/val/test split with only image identifiers.
@@ -187,8 +140,8 @@ class EnMAPCDLNLCDDataset(NonGeoDataset):
         # Construct the full paths for image and mask
         sample_collection = [
             (
-                os.path.join(self.root, self.image_root.format(self.sensor), sample_id),
-                os.path.join(self.root, self.mask_root.format(self.product), sample_id)
+                self.root / self.IMAGE_ROOT / sample_id,
+                self.root / self.MASK_ROOT / sample_id
             )
             for sample_id in sample_ids
         ]
@@ -242,7 +195,7 @@ class EnMAPCDLNLCDDataset(NonGeoDataset):
             elif self.band_selection == "srf_grouping":
                 image = src.read() # (C, H, W)
                 c, h, w = image.shape
-                assert c == self.srf_weight_matrix.shape[0], f"Mismatch! Image has {c} bands, but weighs have {self.srf_weight_matrix.shape[0]}"
+                assert c == self.srf_weight_matrix.shape[0], f"Mismatch! Image has {c} bands, but weights have {self.srf_weight_matrix.shape[0]}"
                     
                 # (C, H, W) -> (C, H*W) -> Transpose -> (H*W, C)
                 flattened = image.reshape(c, -1).T
@@ -285,7 +238,7 @@ class EnMAPCDLNLCDDataset(NonGeoDataset):
         """
         ncols = 2
 
-        image = sample["image"][self.rgb_indices[self.sensor]].numpy()
+        image = sample["image"][self.RGB_INDICES].numpy()
 
         image = image.transpose(1, 2, 0)
         image = (image - image.min()) / (image.max() - image.min())
