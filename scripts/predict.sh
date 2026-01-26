@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --account=IscrC_MOLCAGFM_0
+#SBATCH --account=pMI25_DICA_0
 #SBATCH --output=logs/predict_%j.out
 #SBATCH --error=logs/predict_%j.err
 #SBATCH --time=01:00:00
@@ -12,9 +12,9 @@
 set -e
 
 module load python/3.11.7
-source /leonardo/home/userexternal/jleonard/experiments/JL_TT/bin/activate
-export PYTHONPATH=$PYTHONPATH:/leonardo/home/userexternal/jleonard/experiments
-cd /leonardo/home/userexternal/jleonard/experiments || exit 1
+source /leonardo/home/userexternal/jleonard/ICRL_exp/ICLR_TM/bin/activate
+export PYTHONPATH=$PYTHONPATH:/leonardo/home/userexternal/jleonard/ICRL_exp
+cd /leonardo/home/userexternal/jleonard/ICRL_exp || exit 1
 
 echo "Running inference on $(hostname)"
 echo "Started at $(date)"
