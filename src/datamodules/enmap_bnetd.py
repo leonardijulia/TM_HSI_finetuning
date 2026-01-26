@@ -22,7 +22,7 @@ class EnMAPBNETDDataModule(NonGeoDataModule):
         batch_size: int = 64,
         patch_size: Union[int, tuple[int, int]] = 128,
         num_workers: int = 0,
-        stats_path: str = "data/statistics/enmap",
+        stats_path: str = "./data/statistics/enmap",
         band_selection: str = "srf_grouping",
         indices: Optional[list[int]] = None,
         srf_weight_file: Optional[str] = "SRF_S2L2A_EnMAP_W.npy",

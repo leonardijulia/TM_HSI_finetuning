@@ -16,26 +16,41 @@ class EnMAPBDForetDataset(NonGeoDataset):
     This dataset pairs EnMAP hyperspectral imagery with tree species labels masks
     from the BD Forêt (French National Forest Database). The dataset provides customizable
     class remapping to focus on specific forest types while treating others as background.
- 
+    
+    Expects a directory layout:
+      root/
+        enmap/               # hyperspectral images (C,H,W)
+        bdforet/             # label rasters (1,H,W) with CDL class IDs
+      splits/
+        enmap_bdforet/
+          train.txt
+          val.txt
+          test.txt    
+
+    Band handling:
+      - band_selection="naive": select 12 Sentinel-2-like bands via indices.
+      - band_selection="srf_grouping": load all bands and project to 12 via SRF weight matrix.
+      - rgb_indices define visualization channels (assumes 12-band S2L2A order).
+
+    Class remapping:
+      - `classes` must include background 0.
+      - Background is moved to the end to become the ignore class.
+      - Masks are mapped to ordinal labels via `ordinal_map`; set raw_mask=True to skip remap.   
     """
 
-    valid_splits = ["train", "val", "test"]
-    valid_band_selection = ["naive", "srf_grouping"]
-
+    VALID_SPLITS = ["train", "val", "test"]
+    VALID_BAND_SELECTION = ["naive", "srf_grouping"]
+    S2L2A_INDICES = [6, 16, 30, 48, 54, 59, 65, 71, 75, 90, 131, 172]
+    RGB_INDICES = [3, 2, 1]
     # Relative directories (with respect to the root)
-    image_root = "enmap"   # ENMAP images
-    mask_root = "bdforet"    # BD Forest masks
-    split_path = os.path.join("data", "splits", "enmap_bdforet", "{}.txt")
+    IMAGE_ROOT = "enmap"   # ENMAP images
+    MASK_ROOT = "bdforet"    # BD Forest masks
     
-    s2l2a_indices = [6, 16, 30, 48, 54, 59, 65, 71, 75, 90, 131, 172]
-    rgb_indices = {"enmap": [3,2,1]}
-
     def __init__(
         self,
         root: str = "./data/enmap_bdforet",
-        sensor: str = "enmap",
         split: str = "train",
-        classes: Optional[List[int]] = [0, 1, 2, 3, 4, 5, 7, 9, 10, 11, 12, 14, 16],
+        classes: Optional[List[int]] = None,
         transforms: Optional[Callable[[dict[str, Tensor]], dict[str, Tensor]]] = None,
         num_bands: int = 12,
         band_selection: str = "srf_grouping",
@@ -47,11 +62,13 @@ class EnMAPBDForetDataset(NonGeoDataset):
         
         Args:
             root: Root directory where dataset is stored
-            sensor: Sensor name (default: "enmap")
             split: Dataset split ("train", "val", or "test")
             classes: List of forest class codes (must include 0 for background)
             transforms: Optional transforms to apply to samples
             num_bands: Number of spectral bands (default: 202 for EnMAP)
+            band_selection (str): Method of mapping the hyperspectral bands into a lower space ("naive" or "srf_grouping").
+            indices (list[int], optional): which indices to select for naive band selection.
+            srf_weight_matrix (str | Path): Path to the weight matrix used in srf grouping method.
             raw_mask: If True, don't remap mask classes
             
         Raises:
@@ -59,8 +76,8 @@ class EnMAPBDForetDataset(NonGeoDataset):
                 or split file is not found
         """
         super().__init__()
-        if split not in self.valid_splits:
-            raise ValueError(f"Split '{split}' not one of {self.valid_splits}.")
+        if split not in self.VALID_SPLITS:
+            raise ValueError(f"Split '{split}' not one of {self.VALID_SPLITS}.")
         if classes is None:
             raise ValueError("Please provide a list of classes. All other classes will be mapped to background.")
         if 0 not in classes:
@@ -69,20 +86,21 @@ class EnMAPBDForetDataset(NonGeoDataset):
         self.split = split
         
         assert (
-            band_selection in self.valid_band_selection
-        ), f"Only supports one of {self.valid_band_selection}, but found {band_selection}"
+            band_selection in self.VALID_BAND_SELECTION
+        ), f"Only supports one of {self.VALID_BAND_SELECTION}, but found {band_selection}"
         
         if band_selection == "srf_grouping":
             if srf_weight_matrix == None:
                 raise ValueError("SRF grouping strategy requires the srf weight matrix!")                
+            if not Path(srf_weight_matrix).exists():
+                raise ValueError("SRF grouping matrix not found!") 
             self.srf_weight_matrix = np.load(srf_weight_matrix).astype(np.float32)
         
         self.band_selection = band_selection
-        self.indices = indices if indices is not None else self.s2l2a_indices
-        self.root = root
+        self.indices = indices if indices is not None else self.S2L2A_INDICES
+        self.root = Path(root)
         self.transforms = transforms
         self.raw_mask = raw_mask
-        self.sensor = sensor
         self.num_bands = num_bands
 
         # Store the provided classes.
@@ -103,7 +121,7 @@ class EnMAPBDForetDataset(NonGeoDataset):
             self.ordinal_cmap[i] = torch.tensor([int(255 * c) for c in color])
         
         # Read split file containing sample identifiers.
-        self.split_file = self.split_path.format(self.split)
+        self.split_file = self.root.parent / "splits" / "enmap_bdforet" / f"{self.split}.txt"
         if os.path.exists(self.split_file):
             self.sample_collection = self.read_split_file()
         else:
@@ -115,8 +133,8 @@ class EnMAPBDForetDataset(NonGeoDataset):
             sample_ids = [x.strip() for x in f.readlines()]
         sample_collection = [
             (
-                os.path.join(self.root, self.image_root, sample_id),
-                os.path.join(self.root, self.mask_root, sample_id)
+                self.root / self.IMAGE_ROOT / sample_id,
+                self.root / self.MASK_ROOT / sample_id
             )
             for sample_id in sample_ids
         ]
@@ -147,17 +165,19 @@ class EnMAPBDForetDataset(NonGeoDataset):
             elif self.band_selection == "srf_grouping":
                 image = src.read() # (C, H, W)
                 c, h, w = image.shape
-                assert c == self.srf_weight_matrix.shape[0], f"Mismatch! Image has {c} bands, but weighs have {self.srf_weight_matrix.shape[0]}"
+                assert c == self.srf_weight_matrix.shape[0], f"Mismatch! Image has {c} bands, but weights have {self.srf_weight_matrix.shape[0]}"
                     
                 # (C, H, W) -> (C, H*W) -> Transpose -> (H*W, C)
                 flattened = image.reshape(c, -1).T
                 grouped= np.dot(flattened, self.srf_weight_matrix)
                 grouped = grouped.reshape(h, w, -1).transpose(2, 0, 1)
                 image = torch.from_numpy(grouped).float()
-                     
-        image[image < 0] = 0.0
-        image =  image / 10000.0
-        return image.float()
+                
+        # for bdforet-specific statistics:             
+        # image[image < 0] = 0.0 
+        # image =  image / 10000.0
+        # for consistency - using the general enmap stats
+        return image
 
     def _load_mask(self, path: str) -> Tensor:
         """Load the BD Forest mask using rasterio, and remap classes if needed."""
@@ -187,7 +207,7 @@ class EnMAPBDForetDataset(NonGeoDataset):
     ) -> plt.Figure:
         """Plot the sample image and mask."""
         ncols = 2
-        image = sample["image"][self.rgb_indices[self.sensor]].numpy()
+        image = sample["image"][self.RGB_INDICES].numpy()
         image = image.transpose(1, 2, 0)
         image = (image - image.min()) / (image.max() - image.min())
 

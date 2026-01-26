@@ -20,7 +20,7 @@ class EnMAPBNETDDataset(NonGeoDataset):
     Expects a directory layout:
       root/
         enmap/               # hyperspectral images (C,H,W)
-        bnetd/                 # label rasters (1,H,W) with CDL class IDs
+        bnetd/               # label rasters (1,H,W) with CDL class IDs
       splits/
         enmap_bnetd/
           train.txt
