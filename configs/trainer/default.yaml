@@ -6,7 +6,7 @@ precision: 16-mixed
 logger:
   class_path: lightning.pytorch.loggers.MLFlowLogger
   init_args:
-    experiment_name: ${hydra:job.name}
+    experiment_name: ${hydra:job.name}_${data.init_args.band_selection}
     tracking_uri: file:${outputs_root}/mlruns
 
 callbacks:
@@ -16,7 +16,7 @@ callbacks:
         logging_interval: epoch
   - class_path: ModelCheckpoint
     init_args:
-      dirpath: ${hydra:runtime.output_dir}/checkpoints
+      dirpath: ${outputs_root}/${hydra:job.name}/checkpoints/${data.init_args.band_selection}_seed${seed_everything}
       filename: '{epoch:02d}'
       monitor: val/loss
       mode: min

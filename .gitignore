@@ -5,9 +5,6 @@ data/enmap_bnetd
 data/enmap_bdforet
 data/emit_ch4
 
-configs/run_training_enmap_cdl.sh
-configs/run_training_hyperview_1.sh
-
 auxiliary
 
 outputs
@@ -15,10 +12,6 @@ outputs
 src/ckpt
 tm
 __pycache__/
-experiment_logs
 mlflow.db
-config.yaml
-config_deploy.yaml
 .gitignore
-lightning_logs
 .env

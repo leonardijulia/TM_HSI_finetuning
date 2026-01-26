@@ -1,12 +1,10 @@
-seed_everything: 42
-
 defaults:
-  - /trainer: default
+  - /config
   - /model: regression_task
   - /data: hyperview_1
   - /optimizer: adamw_standard
   - /scheduler: reduce_on_plateau
-  - /paths: default
+  - _self_
 
 trainer:
   callbacks:

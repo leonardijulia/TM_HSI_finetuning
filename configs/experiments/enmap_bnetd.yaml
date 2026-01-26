@@ -1,13 +1,10 @@
-# lightning.pytorch==2.1.1
-seed_everything: 42
-
 defaults:
-  - /trainer: default
+  - /config
   - /model: segmentation_task
   - /data: enmap_bnetd
   - /optimizer: adamw_standard
   - /scheduler: cosine_annealing
-  - /paths: default 
+  - _self_
 
 trainer:
   max_epochs: 100

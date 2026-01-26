@@ -56,7 +56,7 @@ def setup_trainer(cfg: DictConfig) -> Trainer:
     
     return Trainer(**trainer_cfg, callbacks=callbacks, logger=logger)
 
-@hydra.main(version_base=None, config_path="../configs", config_name="hyperview_1",)
+@hydra.main(version_base=None, config_path="../configs", config_name="config",)
 def main(cfg: DictConfig) -> None:
     """Main training/testing/predicting function."""
     

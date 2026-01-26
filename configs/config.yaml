@@ -1,0 +1,7 @@
+defaults:
+  - paths: default  
+  - trainer: default
+  - _self_
+
+seed_everything: 42
+mode: train
