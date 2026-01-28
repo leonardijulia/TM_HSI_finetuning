@@ -1,5 +1,6 @@
+# @package _global_
+
 defaults:
-  - /config
   - /model: segmentation_task
   - /data: enmap_bnetd
   - /optimizer: adamw_standard

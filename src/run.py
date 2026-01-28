@@ -29,6 +29,7 @@ def setup_common(cfg: DictConfig):
     log.info(f"Output directory: {output_dir}")
     
     datamodule = instantiate(cfg.data)
+    log.info(f"Model config before instantiate:\n{OmegaConf.to_yaml(cfg.model)}")
     model = instantiate(cfg.model)
     
     return datamodule, model, output_dir
@@ -42,12 +43,12 @@ def setup_trainer(cfg: DictConfig) -> Trainer:
             callbacks.append(instantiate(callback_cfg))
     
     logger = None
-        if "logger" in cfg.trainer:
+    if "logger" in cfg.trainer:
         # Generate smart run_name if not set
-        if not cfg.trainer.logger.init_args.get("run_name"):
-            band_sel = cfg.data.init_args.get("band_selection", "default")
+        if not cfg.trainer.logger.get("run_name"):
+            band_sel = cfg.data.get("band_selection", "default")
             run_name = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{band_sel}_seed{cfg.seed_everything}"
-            cfg.trainer.logger.init_args.run_name = run_name
+            cfg.trainer.logger.run_name = run_name
         logger = instantiate(cfg.trainer.logger)
     
     trainer_cfg = OmegaConf.to_container(cfg.trainer, resolve=True)
@@ -56,7 +57,7 @@ def setup_trainer(cfg: DictConfig) -> Trainer:
     
     return Trainer(**trainer_cfg, callbacks=callbacks, logger=logger)
 
-@hydra.main(version_base=None, config_path="../configs", config_name="config",)
+@hydra.main(version_base=None, config_path="../configs", config_name="config.yaml",)
 def main(cfg: DictConfig) -> None:
     """Main training/testing/predicting function."""
     

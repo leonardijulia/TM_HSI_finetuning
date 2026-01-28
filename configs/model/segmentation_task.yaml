@@ -1,20 +1,19 @@
-class_path: terratorch.tasks.SemanticSegmentationTask
-init_args:
-  model_factory: EncoderDecoderFactory
-  model_args:
-    backbone: terramind_v1_base
-    backbone_ckpt_path: ${backbone_ckpt_path}
-    backbone_img_size: 224
-    backbone_modalities:
-      - S2L2A
-    necks:
-      - name: SelectIndices
-        indices: [-1]
-      - name: ReshapeTokensToImage
-        remove_cls_token: False
-    decoder: FCNDecoder
-    decoder_channels: 256
-    head_dropout: 0.21
-  freeze_backbone: false
-  freeze_decoder: false
-  loss: ce
+_target_: terratorch.tasks.SemanticSegmentationTask
+model_factory: EncoderDecoderFactory
+model_args:
+  backbone: terramind_v1_base
+  backbone_ckpt_path: ${backbone_ckpt_path}
+  backbone_img_size: 224
+  backbone_modalities:
+    - S2L2A
+  necks:
+    - name: SelectIndices
+      indices: [-1]
+    - name: ReshapeTokensToImage
+      remove_cls_token: False
+  decoder: FCNDecoder
+  decoder_channels: 256
+  head_dropout: 0.21
+freeze_backbone: false
+freeze_decoder: false
+loss: ce

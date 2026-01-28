@@ -1,5 +1,6 @@
+# @package _global_
+
 defaults:
-  - /config
   - /model: segmentation_task
   - /data: enmap_bdforet
   - /optimizer: adamw_standard

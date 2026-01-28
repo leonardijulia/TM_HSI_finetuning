@@ -1,4 +1,6 @@
-project_root: /leonardo/home/userexternal/jleonard/experiments
+# @package _global_
+
+project_root: /leonardo/home/userexternal/jleonard/ICLR_exp
 data_root: ${project_root}/data
 ckpt_root: ${project_root}/src/ckpt
 outputs_root: ${project_root}/outputs

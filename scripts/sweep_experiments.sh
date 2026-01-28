@@ -21,8 +21,8 @@ for exp in "${EXPERIMENTS[@]}"; do
   for band_sel in "${BAND_SELECTIONS[@]}"; do
     for seed in "${SEEDS[@]}"; do
       JOB_COUNT=$((JOB_COUNT + 1))
-      echo "[$JOB_COUNT/$TOTAL_JOBS] Submitting: experiment=$exp, band_selection=$band_sel, seed=$seed"
-      sbatch scripts/train.sh "$exp" data.init_args.band_selection="$band_sel" seed_everything="$seed"
+      echo "[$JOB_COUNT/$TOTAL_JOBS] Submitting: experiments=$exp, band_selection=$band_sel, seed=$seed"
+      sbatch scripts/train.sh $exp data.init_args.band_selection=$band_sel seed_everything=$seed
       # small delay to avoid overwhelming scheduler
       sleep 0.1
     done

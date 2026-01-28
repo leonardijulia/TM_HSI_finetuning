@@ -1,7 +1,19 @@
+# @package _global_
+
 defaults:
-  - paths: default  
-  - trainer: default
   - _self_
+  - data: null
+  - model: null
+  - trainer: default.yaml
+  - experiment: null  
+  - paths: default.yaml
+  - optimizer: adamw_standard.yaml
+  - scheduler: cosine_annealing.yaml
+
+task_name: null
+
+ckpt_root: null
 
 seed_everything: 42
+
 mode: train

@@ -1,9 +1,8 @@
-class_path: src.datamodules.enmap_bdforet.EnMAPBDForetDataModule
-init_args:
-  batch_size: 16
-  num_workers: 2
-  patch_size: 224
-  stats_path: ${data_root}/statistics/enmap_bdforet
-  root: ${data_root}/enmap_bdforet
-  classes: [0, 1, 2, 3, 4, 5, 7, 9, 10, 11, 12, 14, 16]
-  band_selection: srf_grouping
+_target_: src.datamodules.enmap_bdforet.EnMAPBDForetDataModule
+root: ${data_root}/enmap_bdforet
+stats_path: ${data_root}/statistics/enmap_bdforet
+classes: [0, 1, 2, 3, 4, 5, 7, 9, 10, 11, 12, 14, 16]
+band_selection: srf_grouping
+num_workers: 2
+batch_size: 16
+patch_size: 224

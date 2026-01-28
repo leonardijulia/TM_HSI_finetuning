@@ -21,10 +21,27 @@ echo "Running on $(hostname)"
 echo "Started at $(date)"
 nvidia-smi
 
-EXPERIMENT=${1:-hyperview_1} # Default to hyperview_1 if not provided
-EXTRA_ARGS="${@:2}"          # Any additional Hydra overrides
+echo "All arguments: $@"
+echo "Number of arguments: $#"
 
-python src/run.py mode=train experiment=$EXPERIMENT $EXTRA_ARGS
+FIRST_ARG=${1:-hyperview_1}
+shift  # Remove first argument so $@ holds remaining overrides
+
+# Use case statement for portability (works on dash/sh too)
+case "$FIRST_ARG" in
+  *"="*)
+    # Already a Hydra override (key=value)
+    echo "Experiment override detected: $FIRST_ARG"
+    echo "Remaining args: $@"
+    python src/run.py mode=train "$FIRST_ARG" "$@"
+    ;;
+  *)
+    # Positional experiment name
+    echo "Experiment name detected: $FIRST_ARG"
+    echo "Remaining args: $@"
+    python src/run.py mode=train experiments="$FIRST_ARG" "$@"
+    ;;
+esac
 
 echo "Finished at $(date)"
 #terratorch fit -c configs/enmap_cdl.yaml

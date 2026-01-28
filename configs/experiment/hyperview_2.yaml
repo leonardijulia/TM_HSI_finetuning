@@ -1,3 +1,5 @@
+# @package _global_
+
 defaults:
   - /config
   - /model: regression_task
@@ -16,17 +18,17 @@ trainer:
 model:
   init_args:
     model_args:
-      backbone_in_chans: 10
+      backbone_in_chans: 13
       backbone_bands:
-        S2L2A: ["BLUE", "GREEN", "RED", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3",
-                "NIR_BROAD", "NIR_NARROW", "WATER_VAPOR", "MASK"] 
-      head_num_outputs: 4
-      head_dropout: 0.2
+        S2L2A: ["COASTAL_AEROSOL", "BLUE", "GREEN", "RED", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3", "NIR_BROAD", 
+                "NIR_NARROW", "WATER_VAPOR", "SWIR_1", "SWIR_2", "MASK"]
+      head_num_outputs: 6
+      head_dropout: 0.237175
       head_dim_list: [256]
       head_linear_after_pool: true
-    num_outputs: 4
-    path_to_record_metrics: ${outputs_root}/hyperview_1/ 
-    var_names: ["P", "K", "Mg", "pH"]
+    num_outputs: 6
+    path_to_record_metrics: ${outputs_root}/hyperview_2/ 
+    var_names: ['Fe', 'Zn', 'B', 'Cu', 'S', 'Mn']
 
 optimizer:
   init_args:

@@ -1,19 +1,18 @@
-class_path: terratorch.tasks.ScalarRegressionTask
-init_args:
-  model_factory: EncoderDecoderFactory
-  model_args:
-    backbone: terramind_v1_base
-    backbone_ckpt_path: ${backbone_ckpt_path}
-    backbone_img_size: 224
-    backbone_modalities:
-      - S2L2A
-    necks:
-      - name: SelectIndices
-        indices: [-1]
-      - name: PermuteDims
-        new_order: [0, 2, 1]
-    decoder: IdentityDecoder
-  plot_on_val: false
-  freeze_backbone: false
-  freeze_decoder: false
-  loss: mse
+_target_: terratorch.tasks.ScalarRegressionTask
+model_factory: EncoderDecoderFactory
+model_args:
+  backbone: terramind_v1_base
+  backbone_ckpt_path: ${backbone_ckpt_path}
+  backbone_img_size: 224
+  backbone_modalities:
+    - S2L2A
+  necks:
+    - name: SelectIndices
+      indices: [-1]
+    - name: PermuteDims
+      new_order: [0, 2, 1]
+  decoder: IdentityDecoder
+plot_on_val: false
+freeze_backbone: false
+freeze_decoder: false
+loss: mse
