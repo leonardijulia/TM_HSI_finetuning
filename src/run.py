@@ -2,104 +2,108 @@
 Unified training/testing/prediction script.
 
 Usage:
-    python src/run.py mode=train experiment=hyperview_1
+    python src/run.py experiment=hyperview_1
     python src/run.py mode=test experiment=hyperview_1 ckpt_path=outputs/...
     python src/run.py mode=predict experiment=hyperview_1 ckpt_path=outputs/...
 """
 
-import logging
-from pathlib import Path
-from datetime import datetime
+from typing import List, Optional, Tuple
+
 import hydra
-from omegaconf import DictConfig, OmegaConf
+import lightning as L
+import pyrootutils
 import torch
-from lightning import Trainer, seed_everything
-from hydra.core.hydra_config import HydraConfig
-from hydra.utils import instantiate
-from lightning.pytorch.callbacks import ModelCheckpoint
+from lightning import Callback, LightningDataModule, LightningModule, Trainer
+from lightning.pytorch.loggers import Logger
+from omegaconf import DictConfig
+import os
+pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
-log = logging.getLogger(__name__)
+from src import utils
 
-def setup_common(cfg: DictConfig):
-    """Common setup for all modes."""
-    seed_everything(cfg.seed_everything, workers=True)
-    log.info("Configuration:\n" + OmegaConf.to_yaml(cfg))
-    
-    output_dir = Path(HydraConfig.get().runtime.output_dir)
-    log.info(f"Output directory: {output_dir}")
-    
-    datamodule = instantiate(cfg.data)
-    log.info(f"Model config before instantiate:\n{OmegaConf.to_yaml(cfg.model)}")
-    model = instantiate(cfg.model)
-    
-    return datamodule, model, output_dir
+log = utils.get_pylogger(__name__)
 
-def setup_trainer(cfg: DictConfig) -> Trainer:
-    """Setup Lightning trainer."""
-    
-    callbacks = []
-    if "callbacks" in cfg.trainer:
-        for callback_cfg in cfg.trainer.callbacks:
-            callbacks.append(instantiate(callback_cfg))
-    
-    logger = None
-    if "logger" in cfg.trainer:
-        # Generate smart run_name if not set
-        if not cfg.trainer.logger.get("run_name"):
-            band_sel = cfg.data.get("band_selection", "default")
-            run_name = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{band_sel}_seed{cfg.seed_everything}"
-            cfg.trainer.logger.run_name = run_name
-        logger = instantiate(cfg.trainer.logger)
-    
-    trainer_cfg = OmegaConf.to_container(cfg.trainer, resolve=True)
-    trainer_cfg.pop("callbacks", None)
-    trainer_cfg.pop("logger", None)
-    
-    return Trainer(**trainer_cfg, callbacks=callbacks, logger=logger)
+
+@utils.task_wrapper
+def train(cfg: DictConfig) -> Tuple[dict, dict]:
+    """Trains the model.
+
+    Args:
+        cfg (DictConfig): Configuration composed by Hydra.
+
+    Returns:
+        Tuple[dict, dict]: Dict with metrics and dict with all instantiated objects.
+    """
+
+    if cfg.get("seed"):
+        L.seed_everything(cfg.seed, workers=True)
+
+    torch.set_float32_matmul_precision('medium')
+
+    log.info(f"Instantiating datamodule <{cfg.data._target_}>")
+    datamodule: LightningDataModule = hydra.utils.instantiate(cfg.data)
+
+    log.info(f"Instantiating model <{cfg.model._target_}>")
+    model: LightningModule = hydra.utils.instantiate(cfg.model)
+
+    log.info("Instantiating callbacks...")
+    callbacks: List[Callback] = utils.instantiate_callbacks(cfg.get("callbacks"))
+
+    log.info("Instantiating loggers...")
+    logger: List[Logger] = utils.instantiate_loggers(cfg.get("logger"))
+
+    log.info(f"Instantiating trainer <{cfg.trainer._target_}>")
+    trainer: Trainer = hydra.utils.instantiate(cfg.trainer, callbacks=callbacks, logger=logger)
+
+    object_dict = {
+        "cfg": cfg,
+        "datamodule": datamodule,
+        "model": model,
+        "callbacks": callbacks,
+        "logger": logger,
+        "trainer": trainer,
+    }
+
+    if logger:
+        log.info("Logging hyperparameters!")
+        utils.log_hyperparameters(object_dict)
+
+    if cfg.get("train"):
+        log.info("Starting training!")
+        trainer.fit(model=model, datamodule=datamodule, ckpt_path=cfg.get("ckpt_path"))
+
+    train_metrics = trainer.callback_metrics
+
+    if cfg.get("test"):
+        log.info("Starting testing!")
+        ckpt_path = trainer.checkpoint_callback.best_model_path
+        if ckpt_path == "":
+            log.warning("Best ckpt not found! Using current weights for testing...")
+            ckpt_path = None
+        trainer.test(model=model, datamodule=datamodule, ckpt_path=ckpt_path)
+        log.info(f"Best ckpt path: {ckpt_path}")
+
+    test_metrics = trainer.callback_metrics
+
+    # merge train and test metrics
+    metric_dict = {**train_metrics, **test_metrics}
+
+    return metric_dict, object_dict
 
 @hydra.main(version_base=None, config_path="../configs", config_name="config.yaml",)
 def main(cfg: DictConfig) -> None:
-    """Main training/testing/predicting function."""
-    
-    mode = cfg.get("mode", "train")
-    
-    if mode == "train":
-        log.info("Mode: TRAINING")
-        datamodule, model, output_dir = setup_common(cfg)
-        trainer = setup_trainer(cfg)
-        trainer.fit(model, datamodule=datamodule)
+    utils.extras(cfg)
         
-    elif mode == "test":
-        log.info("Mode: TESTING")
-        datamodule, model, output_dir = setup_common(cfg)
-        trainer = setup_trainer(cfg)
-        
-        ckpt_path = cfg.get("ckpt_path")
-        if not ckpt_path:
-            raise ValueError("ckpt_path required for test mode")
-        
-        trainer.test(model, datamodule=datamodule, ckpt_path=ckpt_path)
-        
-    elif mode == "predict":
-        log.info("Mode: PREDICTION")
-        datamodule, model, output_dir = setup_common(cfg)
-        trainer = setup_trainer(cfg)
-        
-        ckpt_path = cfg.get("ckpt_path")
-        if not ckpt_path:
-            raise ValueError("ckpt_path required for predict mode")
-        
-        predictions = trainer.predict(model, datamodule=datamodule, ckpt_path=ckpt_path)
-        
-        # Save predictions
-        import pickle
-        pred_file = output_dir / "predictions.pkl"
-        with open(pred_file, "wb") as f:
-            pickle.dump(predictions, f)
-        log.info(f"Predictions saved to {pred_file}")
-    
-    else:
-        raise ValueError(f"Unknown mode: {mode}. Choose: train, test, predict")
+    # train the model
+    metric_dict, _ = train(cfg)
+
+    # safely retrieve metric value for hydra-based hyperparameter optimization
+    metric_value = utils.get_metric_value(
+        metric_dict=metric_dict, metric_name=cfg.get("optimized_metric")
+    )
+
+    # return optimized metric
+    return metric_value
 
 if __name__ == "__main__":
     main()

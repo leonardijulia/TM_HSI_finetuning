@@ -1,0 +1,21 @@
+defaults:
+  - model_checkpoint.yaml
+  - model_summary.yaml
+  - rich_progress_bar.yaml
+  - early_stopping.yaml
+  - _self_
+
+model_checkpoint:
+  dirpath: ${outputs_root}/${hydra:job.name}/checkpoints/seed${seed_everything}
+  filename: "epoch_{epoch:03d}"
+  monitor: "val_loss"
+  mode: "min"
+  save_last: False
+  auto_insert_metric_name: False
+  verbose: True
+
+model_summary:
+  max_depth: -1
+
+early_stopping:
+  min_delta: 1e-4

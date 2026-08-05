@@ -4,11 +4,13 @@ defaults:
   - _self_
   - data: null
   - model: null
-  - trainer: default.yaml
-  - experiment: null  
-  - paths: default.yaml
-  - optimizer: adamw_standard.yaml
-  - scheduler: cosine_annealing.yaml
+  - trainer: default  
+  - paths: default
+  - optimizer: adamw_standard
+  - scheduler: cosine_annealing
+  - logger: wandb
+  - callbacks: default
+  - experiment: null
 
 task_name: null
 
@@ -16,4 +18,6 @@ ckpt_root: null
 
 seed_everything: 42
 
-mode: train
+train: true
+
+test: false

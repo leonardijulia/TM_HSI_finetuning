@@ -1,0 +1,8 @@
+wandb:
+  _target_: lightning.pytorch.loggers.wandb.WandbLogger
+  save_dir: "${outputs_root}"
+  offline: True
+  id: null
+  project: "HSI downstreams"
+  entity: "leonardijulia-politecnico-di-milano"
+  tags: ["test"]

@@ -4,8 +4,7 @@ model_args:
   backbone: terramind_v1_base
   backbone_ckpt_path: ${backbone_ckpt_path}
   backbone_img_size: 224
-  backbone_modalities:
-    - S2L2A
+  
   necks:
     - name: SelectIndices
       indices: [-1]

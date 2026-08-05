@@ -1,30 +1,14 @@
-__target__: lightning.pytorch.trainer.Trainer
-accelerator: auto
-strategy: auto
-devices: auto
-num_nodes: 1
-precision: 16-mixed
-logger:
-  _target_: lightning.pytorch.loggers.MLFlowLogger
-  experiment_name: ${hydra:job.name}
-  tracking_uri: file:${outputs_root}/mlruns
-  run_name: null  # Set dynamically by run.py
+_target_: lightning.pytorch.trainer.Trainer
 
-callbacks:
-  - _target_: lightning.pytorch.callbacks.RichProgressBar
-  - _target_: lightning.pytorch.callbacks.LearningRateMonitor
-    logging_interval: epoch
-  - _target_: lightning.pytorch.callbacks.ModelCheckpoint
-    dirpath: ${outputs_root}/${hydra:job.name}/checkpoints/seed${seed_everything}
-    filename: '{epoch:02d}'
-    monitor: val/loss
-    mode: min
-    save_top_k: 1
-    save_last: false
-  - _target_: lightning.pytorch.callbacks.EarlyStopping
-    monitor: val/loss
-    mode: min
-    patience: 20
+accelerator: auto
+devices: 1
+
+precision: 16-mixed
 
 log_every_n_steps: 5
 default_root_dir: ${project_root}
+
+min_epochs: 1
+max_epochs: 100
+
+deterministic: False

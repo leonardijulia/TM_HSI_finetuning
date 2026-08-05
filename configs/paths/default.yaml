@@ -1,6 +1,6 @@
 # @package _global_
 
-project_root: /leonardo/home/userexternal/jleonard/ICLR_exp
+project_root: C:/Users/Julia/OneDrive/Dokumenty/WORK/PhD/IBM/experiments #/leonardo/home/userexternal/jleonard/ICLR_exp
 data_root: ${project_root}/data
 ckpt_root: ${project_root}/src/ckpt
 outputs_root: ${project_root}/outputs
