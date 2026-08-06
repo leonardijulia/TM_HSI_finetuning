@@ -1,0 +1,39 @@
+# @package _global_
+
+defaults:
+  - override /data: enmap_corine
+  - override /model: multi_classification_task
+  - override /callbacks: default
+  - override /trainer: gpu
+  - override /logger: wandb  
+
+trainer:
+  max_epochs: 1
+
+model: 
+  model_args:
+    backbone_in_chans: 12
+    num_classes: 19
+
+path_to_record_metrics: ${outputs_root}/enmap_corine/ 
+class_names: ["Urban fabric",
+            "Industrial or commercial units",
+            "Arable land",
+            "Permanent crops",
+            "Pastures",
+            "Complex cultivation patterns",
+            "Land principally occupied by agriculture, with significant areas of natural vegetation",
+            "Agro-forestry areas",
+            "Broad-leaved forest",
+            "Coniferous forest",
+            "Mixed forest",
+            "Natural grassland and sparsely vegetated areas",
+            "Moors, heathland and sclerophyllous vegetation",
+            "Transitional woodland, shrub",
+            "Beaches, dunes, sands",
+            "Inland wetlands",
+            "Coastal wetlands",
+            "Inland waters",
+            "Marine waters",]
+
+
